@@ -3,6 +3,7 @@ Arduino (ESP8266) solar powered project
 
 Smart solar watering system 
 DPsoftware (Davide Perini)
+
 Components:
   - Arduino C++ sketch running on an ESP8266EX D1 Mini from Lolin running at 80MHz
   - Raspberry + Home Assistant for Web GUI, automations and MQTT server
