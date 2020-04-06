@@ -4,7 +4,7 @@ import datetime
 FILENAME_BUILDNO = 'versioning'
 FILENAME_VERSION_H = 'include/Version.h'
 ## EDIT THIS FILE FOR MAJOR AND MINOR VERSION, HOTFIX NUMBER IS IN THE versioning file
-version = '0.7.'
+version = '0.8.'
 
 if sys.argv[9] == "upload":
     print("PYTHON BUILD SCRIPT args=")

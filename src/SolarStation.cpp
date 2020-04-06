@@ -157,19 +157,19 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   message[length] = '\0';
 
-  if(strcmp(topic, solar_station_mqtt_config) == 0) {
+  if(strcmp(topic, SOLAR_STATION_MQTT_CONFIG) == 0) {
     if (!processMQTTConfig(message)) {
       return;
     }
-  } else if(strcmp(topic, solar_station_mqtt_ack) == 0) {
+  } else if(strcmp(topic, SOLAR_STATION_MQTT_ACK) == 0) {
     if (!processAckTopic(message)) {
       return;
     }
-  } else if(strcmp(topic, solar_station_uploadmode_topic) == 0) {
+  } else if(strcmp(topic, SOLAR_STATION_UPLOADMODE_TOPIC) == 0) {
     if (!processUploadModeJson(message)) {
       return;
     }
-  } else if(strcmp(topic, solar_station_waterpump_active_topic) == 0) {
+  } else if(strcmp(topic, SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC) == 0) {
     if (!processWaterPumpActiveJson(message)) {
       return;
     }
@@ -194,9 +194,9 @@ bool processMQTTConfig(char* message) {
   String uploadModeStr = uploadModeConst;
   uploadMode = uploadModeStr == "on";
   
-  const char* waterPumoActiveConst = doc["pump_active"];
-  String waterPumoActiveStr = waterPumoActiveConst;
-  waterPumpActive = waterPumoActiveStr == "on";
+  const char* waterPumpActiveConst = doc["pump_active"];
+  String waterPumpActiveStr = waterPumpActiveConst;
+  waterPumpActive = waterPumpActiveStr == "on";
 
   const char* pumpSecondsConst = doc["pump_seconds"];
   String pumpSecondsStr = pumpSecondsConst;
@@ -213,11 +213,18 @@ bool processMQTTConfig(char* message) {
   dataMQTTReceived = true;
 
   // Reset the millis used for water pump activity
-  nowMillis = millis();
+  nowMillisWaterPumpStatus = millis();
   // Reset the millis used for send status activity
-  nowMillisStatus = millis();
+  nowMillisStatusWithPumpOn = millis();
   // Reset the millis used for force deep sleep after 15 minutes
   nowMillisForceDeepSleepStatus = millis();
+  // Reset the millis used for MQTT QoS1
+  onStateNowMillis = millis();
+  offStateNowMillis = millis();
+  waterPumpPowerStateOnNowMillis = millis();
+  waterPumpPowerStateOffNowMillis = millis();
+  sensorStateNowMillis = millis();
+  waterPumpActiveStateOffNowMillis = millis();
 
   // Remaining seconds
   waterPumpRemainingSeconds = (waterPumpSecondsOn / 1000);
@@ -227,21 +234,35 @@ bool processMQTTConfig(char* message) {
   return true;
 }
 
+// ACK Automation for custom implementation of QoS1 in pubsubclient that doesn't support QoS1 for publish if not for subscribe
 bool processAckTopic(char* message) {
     String ackMsg = message;
 
-    // if (strcmp(message, "sendOnState") != 0) {
+    if (ackMsg == "sendOnState") {
       onStateAckReceived = true;
-    // } else if (strcmp(message, "sendOffState") != 0) {
+    } else if (ackMsg == "sendOffState") {
       offStateAckReceived = true;
-    // } 
+    } else if (ackMsg == "sendWaterPumpPowerStateOff") {
+      waterPumpPowerStateOffAckReceived = true;
+    } else if (ackMsg == "sendWaterPumpPowerStateOn") {
+      waterPumpPowerStateOnAckReceived = true;
+      waterPumpPower = true;
+      // This runs until the pump is off if the batt voltage is greater than 3.6V
+      digitalWrite(WATER_PUMP_PIN, HIGH); // PHISICALLY TURN ON THE PUMP!!!
+      // Turning on water pump, resetting the millis counter used to turn it off
+      nowMillisWaterPumpStatus = millis();
+    } else if (ackMsg == "sendSensorState") {
+      sensorStateAckReceived = true;
+    } else if (ackMsg == "sendWaterPumpActiveStateOff") {
+      waterPumpActiveStateOffAckReceived = true;
+    }
     
     return true;
 }
 
 bool processUploadModeJson(char* message) {
     String uploadModeStr = message;
-    uploadMode = uploadModeStr == on_cmd;
+    uploadMode = uploadModeStr == ON_CMD;
     Serial.println();
     Serial.print("UPLOAD_MODE= "); Serial.println(uploadMode);    
     Serial.println();
@@ -250,7 +271,7 @@ bool processUploadModeJson(char* message) {
 
 bool processWaterPumpActiveJson(char* message) {
     String waterPumpStr = message;
-    waterPumpActive = waterPumpStr == on_cmd;
+    waterPumpActive = waterPumpStr == ON_CMD;
     Serial.println();
     Serial.print("WATER_PUMP_ACTIVE= "); Serial.println(waterPumpActive);    
     Serial.println();
@@ -259,84 +280,106 @@ bool processWaterPumpActiveJson(char* message) {
 
 /********************************** SEND STATE *****************************************/
 void sendSensorState() {
-  StaticJsonDocument<BUFFER_SIZE> doc;
-  JsonObject root = doc.to<JsonObject>();
-
-  root["Whoami"] = SENSORNAME;
-  root["IP"] = WiFi.localIP().toString();
-  root["MAC"] = WiFi.macAddress();
-  root["ver"] = VERSION_SHORT;
-
-  root["time"] = timedate;
-
-  // read analog battery level 
-  int batteryLevelAnalog = readAnalogBatteryLevel();
-
-  // if the analog value is below 816 (3.3V) execute an hard cutoff
-  if (batteryLevelAnalog <= 816) {
-    hardCutOff = true;
-    root["HARD_CUT_OFF"] = batteryLevelAnalog;
+  if(millis() > sensorStateNowMillis + delay_1000){
+    sensorStateNowMillis = millis();
+    sendSensorStateNotTimed();
   }
-  if (waterPumpCutOff) {
-    root["WATER_PUMP_CUT_OFF"] = batteryLevelAnalog;
-  }
-  root["battery"] = batteryLevelAnalog;
-  root["wifi"] = getQuality();
-  root["frequency"] = ESP.getCpuFreqMHz();  
-  root["remaining_seconds"] = waterPumpRemainingSeconds;  
-  
-  
-  char buffer[measureJson(root) + 1];
-  serializeJson(root, buffer, sizeof(buffer));
+}
+void sendSensorStateNotTimed() {    
+    StaticJsonDocument<BUFFER_SIZE> doc;
+    JsonObject root = doc.to<JsonObject>();
 
-  Serial.println();
-  Serial.println("SENDING SENSOR STATE");
-  serializeJsonPretty(root, Serial);
+    root["Whoami"] = SENSORNAME;
+    root["IP"] = WiFi.localIP().toString();
+    root["MAC"] = WiFi.macAddress();
+    root["ver"] = VERSION_SHORT;
 
-  client.publish(solar_station_state_topic, buffer, true);
+    root["time"] = timedate;
 
-  delay(delay_500);
+    // read analog battery level 
+    int batteryLevelAnalog = readAnalogBatteryLevel();
 
-  // hardCutOff but only if uploadMode is false
-  if (hardCutOff && !uploadMode) {
-    espDeepSleep(true, true);
-  }
+    // if the analog value is below 816 (3.3V) execute an hard cutoff
+    if (batteryLevelAnalog <= 816) {
+      hardCutOff = true;
+      root["HARD_CUT_OFF"] = batteryLevelAnalog;
+    }
+    if (waterPumpCutOff) {
+      root["WATER_PUMP_CUT_OFF"] = batteryLevelAnalog;
+    }
+    root["battery"] = batteryLevelAnalog;
+    root["wifi"] = getQuality();
+    root["frequency"] = ESP.getCpuFreqMHz();  
+    root["remaining_seconds"] = waterPumpRemainingSeconds;  
+    
+    
+    char buffer[measureJson(root) + 1];
+    serializeJson(root, buffer, sizeof(buffer));
 
+    Serial.println();
+    Serial.println("SENDING SENSOR STATE");
+    serializeJsonPretty(root, Serial);
+
+    client.publish(SOLAR_STATION_STATE_TOPIC, buffer, false);
+
+    delay(delay_500);
+
+    // hardCutOff but only if uploadMode is false
+    if (hardCutOff && !uploadMode) {
+      espDeepSleep(true, true);
+    }
 }
 
 void sendSensorStateAfterSeconds(int delay) {
-  if(millis() > nowMillisStatus + delay){
+  if(millis() > nowMillisStatusWithPumpOn + delay){
+    nowMillisStatusWithPumpOn = millis();
     waterPumpRemainingSeconds = (waterPumpRemainingSeconds-(delay/1000));
-    nowMillisStatus = millis();
-    sendSensorState();
+    sendSensorStateNotTimed();
   }
 }
 
-void sendOnState() {  
-  Serial.println("SENDING ON STATE"); 
-  client.publish(solar_station_power_topic, on_cmd, true);
-  delay(delay_500);  
+void sendOnState() {    
+  if(millis() > onStateNowMillis + delay_1000){
+    onStateNowMillis = millis();
+    Serial.println("SENDING ON STATE"); 
+    client.publish(SOLAR_STATION_POWER_TOPIC, ON_CMD, false);
+    delay(delay_500);  
+  }
 }
 
 void sendOffState() {
-  // for (int i=0; (i < MQTT_PUBLISH_MAX_RETRY && !offStateAckReceived); i++) {   
+  if(millis() > offStateNowMillis + delay_1000){
+    offStateNowMillis = millis();
     Serial.println("SENDING OFF STATE");
-    client.publish(solar_station_power_topic, off_cmd, true);
+    client.publish(SOLAR_STATION_POWER_TOPIC, OFF_CMD, false);
     delay(delay_500);
-  // }
+  }
 }
 
-void sendWaterPumpPowerState() {
-  Serial.println(); 
-  Serial.print("SENDING WATER PUMP POWER STATE "); Serial.println(waterPumpPower);
-  client.publish(solar_station_waterpump_power_topic, (waterPumpPower) ? on_cmd : off_cmd, true);
-  delay(delay_500);
+void sendWaterPumpPowerStateOff() {
+  if(millis() > waterPumpPowerStateOffNowMillis + delay_1000){
+    waterPumpPowerStateOffNowMillis = millis();
+    Serial.println(); 
+    Serial.print("SENDING WATER PUMP POWER STATE OFF");
+    client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, OFF_CMD, false);
+    delay(delay_500);
+  }
+}
+
+void sendWaterPumpPowerStateOn() {
+  if(millis() > waterPumpPowerStateOnNowMillis + delay_1000){
+    waterPumpPowerStateOnNowMillis = millis();
+    Serial.println(); 
+    Serial.print("SENDING WATER PUMP POWER STATE ON"); 
+    client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, ON_CMD, false);
+    delay(delay_500);
+  }
 }
 
 void sendWaterPumpActiveStateOff() {
   Serial.println(); 
   Serial.println("SENDING WATER PUMP ACTIVE STATE OFF"); 
-  client.publish(solar_station_waterpump_active_stat_topic, off_cmd, true);
+  client.publish(SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC, OFF_CMD, false);
   delay(delay_500);
 }
 
@@ -349,12 +392,11 @@ void mqttReconnect() {
     // Attempt to connect to MQTT server with QoS = 1 (pubsubclient supports QoS 1 for subscribe only, published msg have QoS 0 this is why I implemented a custom solution)
     if (client.connect(SENSORNAME, mqtt_username, mqtt_password, 0, 1, 0, 0, 1)) {
       Serial.println(F("connected"));
-      
-      client.subscribe(smartostat_climate_state_topic);      
-      client.subscribe(solar_station_uploadmode_topic);      
-      client.subscribe(solar_station_waterpump_active_topic);      
-      client.subscribe(solar_station_mqtt_config);      
-      client.subscribe(solar_station_mqtt_ack);
+                
+      client.subscribe(SOLAR_STATION_UPLOADMODE_TOPIC);      
+      client.subscribe(SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC);      
+      client.subscribe(SOLAR_STATION_MQTT_CONFIG);      
+      client.subscribe(SOLAR_STATION_MQTT_ACK);
 
       delay(delay_2000);
       brokermqttcounter = 0;
@@ -378,22 +420,29 @@ void mqttReconnect() {
 
 /********************************** WATER PUMP MANAGEMENT (non blocking delay) *****************************************/
 void turnOffWaterPumpAfterSeconds() {
-  if(millis() > nowMillis + waterPumpSecondsOn){
-    nowMillis = millis();
+  if(millis() > nowMillisWaterPumpStatus + waterPumpSecondsOn){
+    nowMillisWaterPumpStatus = millis();
     waterPumpPower = false;
-    digitalWrite(WATER_PUMP_PIN, LOW);
-    sendWaterPumpPowerState();
-    sendWaterPumpActiveStateOff();
-    espDeepSleep(true, false);
+    digitalWrite(WATER_PUMP_PIN, LOW); // PHISICALLY TURN OFF THE WATER PUMP
   }
 }
 
 /********************************** ESP DEEP SLEEP *****************************************/
 // Note: to achieve timed deepSleep you need to connect D0 with RST pin
 void espDeepSleep(bool sendState, bool hardCutOff) {
-  if (sendState) {
+  // if sendState is required, shutdown the microcontroller after the offStateAckReceived only
+  if (sendState && !offStateAckReceived) {
     sendOffState();
   }
+  if (sendState && offStateAckReceived) {
+    espDeepSleep(hardCutOff); 
+  }
+  // if sendState is not required, MQTT or Wifi not available for example, shutdown microcontroller
+  if (!sendState) {
+    espDeepSleep(hardCutOff); 
+  }
+}
+void espDeepSleep(bool hardCutOff) { 
   dataMQTTReceived = false;
   delay(delay_1000);
   // if hardCutOff sleep forever or until capacitive button is pressed
@@ -437,12 +486,11 @@ void loop() {
   client.loop();
 
   // Send status on startup and wait for MQTT config
-  if (!startupStatusSent) {
-    startupStatusSent = true;
+  if (!onStateAckReceived) {
     sendOnState();
   }
  
-  // MQTT config received, job start
+  // MQTT config received, job start (MQTT Config sent via HA in QoS1)
   if (dataMQTTReceived) {
     // Upload mode ON loop with blu LED ON
     if (uploadMode) {
@@ -453,24 +501,43 @@ void loop() {
       digitalWrite(LED_BUILTIN, HIGH);    
       // if battery analog level is below 890 (3.6V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
       if (waterPumpActive && !waterPumpCutOff) {      
-        // Water pump active, if the pump was off, send sensor state and pump state for the first time      
-        if (!waterPumpPower) {
-          waterPumpPower = true; 
-          sendWaterPumpPowerState();
-          sendSensorState();                              
-        }      
-        // This runs until the pump is off if the batt voltage is greater than 3.6V
-        sendSensorStateAfterSeconds(delay_1000);
-        digitalWrite(WATER_PUMP_PIN, HIGH);
-        turnOffWaterPumpAfterSeconds();
-        // Pump is turned off, microcontroller is now sleeping
+        // Water pump active, if the pump was off, send sensor state and pump state for the first time              
+        if (!sensorStateAckReceived) {
+          sendSensorState();
+        } else {
+          if (!waterPumpPowerStateOnAckReceived) {            
+            sendWaterPumpPowerStateOn();                                             
+          } else {
+            if (waterPumpPower) {
+              turnOffWaterPumpAfterSeconds(); // Pump is turned off as soon as the delay is reached, no matter for ACK from the MQTT server
+              // continue to send state every seconds when the pump is turned on
+              sendSensorStateAfterSeconds(delay_1000); // this sendState does not wait for an ack    
+            } else {
+              if (!waterPumpPowerStateOffAckReceived) {
+                sendWaterPumpPowerStateOff(); // Update the MQTT server with off state of the pump when it is possible
+              } else {
+                if (!waterPumpActiveStateOffAckReceived) {
+                  sendWaterPumpActiveStateOff();
+                } else {
+                  espDeepSleep(true, false);
+                  // Pump is turned off, microcontroller is finally sleeping
+                }
+              }                            
+            }          
+          }                          
+        }         
       } else {
         // Water pump was not active, send state and sleep until next
-        waterPumpPower = false;      
         digitalWrite(WATER_PUMP_PIN, LOW);
-        sendWaterPumpPowerState();
-        sendSensorState();
-        espDeepSleep(true, false);
+        if (!waterPumpPowerStateOffAckReceived) {
+          sendWaterPumpPowerStateOff();
+        } else {
+          if (!sensorStateAckReceived) {
+            sendSensorState();
+          } else {
+            espDeepSleep(true, false);
+          }          
+        }        
       }
     }
   }

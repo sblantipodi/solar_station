@@ -40,25 +40,32 @@ IPAddress mygateway(192, 168, 1, 1);
 #define serialRate 115200
 
 /************* MQTT TOPICS **************************/
-const char* smartostat_climate_state_topic = "stat/smartostat/CLIMATE"; // Receive time info from the MQTT server
-const char* solar_station_state_topic = "tele/solarstation/STATE";
-const char* solar_station_uploadmode_topic = "cmnd/upload_mode/SLEEP";
-const char* solar_station_waterpump_active_topic = "cmnd/water_pump/ACTIVE";
-const char* solar_station_waterpump_active_stat_topic = "stat/water_pump/ACTIVE";
-const char* solar_station_waterpump_power_topic = "stat/water_pump/POWER";
-const char* solar_station_power_topic = "stat/solarstation/POWER";
-const char* solar_station_mqtt_config = "stat/solarstation/CONFIG";
-const char* solar_station_mqtt_ack = "stat/solarstation/ACK";
+// subscribe
+const char* SOLAR_STATION_UPLOADMODE_TOPIC = "cmnd/upload_mode/SLEEP";
+const char* SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC = "cmnd/water_pump/ACTIVE";
+const char* SOLAR_STATION_MQTT_CONFIG = "stat/solarstation/CONFIG";
+// publish
+const char* SOLAR_STATION_STATE_TOPIC = "tele/solarstation/STATE";
+const char* SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC = "stat/water_pump/ACTIVE";
+const char* SOLAR_STATION_WATERPUMP_POWER_TOPIC = "stat/water_pump/POWER";
+const char* SOLAR_STATION_POWER_TOPIC = "stat/solarstation/POWER";
+const char* SOLAR_STATION_MQTT_ACK = "stat/solarstation/ACK";
 
 /****************** GLOBAL VARS ******************/
 // MQTT publish retry until ack received
 const int MQTT_PUBLISH_MAX_RETRY = 10; // max retry for MQTT publish
 bool onStateAckReceived = false;
+unsigned long onStateNowMillis = 0; 
 bool offStateAckReceived = false;
+unsigned long offStateNowMillis = 0; 
 bool waterPumpPowerStateOnAckReceived = false;
+unsigned long waterPumpPowerStateOnNowMillis = 0;
 bool waterPumpPowerStateOffAckReceived = false;
+unsigned long waterPumpPowerStateOffNowMillis = 0;
 bool sensorStateAckReceived = false;
+unsigned long sensorStateNowMillis = 0;
 bool waterPumpActiveStateOffAckReceived = false;
+unsigned long waterPumpActiveStateOffNowMillis = 0;
 
 int blinked = 10;
 float temperature = 0;
@@ -67,7 +74,6 @@ float humidity = 0;
 bool uploadMode = true; // if true, microcontroller does nothing but expose its OTA programmable interface
 bool waterPumpActive = false; // value received via MQTT config, if true, turn on the pump
 bool waterPumpPower = false; // value send via MQTT message to the broker, if true, the pump if turned on
-bool startupStatusSent = false; // if the value is false, ask the MQTT server for the MQTT config
 bool dataMQTTReceived = false;  // don't do anything until MQTT server sent its configuration
 int waterPumpSecondsOn = 10000; // default 10 seconds, it changes after config received via MQTT message 
 int waterPumpRemainingSeconds = 10;
@@ -82,10 +88,11 @@ int blinkCounter = 0;
 bool hardCutOff = false;
 bool waterPumpCutOff = true;
 // MQTT cmnd
-const char* on_cmd = "ON";
-const char* off_cmd = "OFF";
+const char* ON_CMD = "ON";
+const char* OFF_CMD = "OFF";
 
 String timedate = "OFF";
+const int delay_50 = 50;
 const int delay_500 = 500;
 const int delay_1000 = 1000;
 const int delay_1500 = 1500;
@@ -98,8 +105,8 @@ const int FORCE_DEEP_SLEEP_TIME = 900000; // force deepSleep after 15 minutes
 // variable used for faster delay instead of arduino delay(), this custom delay prevent a lot of problem and memory leak
 const int tenSecondsPeriod = 10000;
 unsigned long timeNowStatus = 0;
-unsigned long nowMillis = 0; // used to turn off the pump after seconds
-unsigned long nowMillisStatus = 0; // used to send status every 5 seconds
+unsigned long nowMillisWaterPumpStatus = 0; // used to turn off the pump after seconds
+unsigned long nowMillisStatusWithPumpOn = 0; // used to send status every second when the pump is on
 unsigned long nowMillisForceDeepSleepStatus = 0; // used to force deep sleep after 15 minutes
 #define MAX_RECONNECT 500
 unsigned int delayTime = 20;
@@ -118,11 +125,15 @@ bool processUploadModeJson(char *message);
 bool processWaterPumpActiveJson(char *message);
 bool processAckTopic(char *message);
 void sendWaterPumpActiveStateOff();
+void sendWaterPumpPowerStateOff();
+void sendWaterPumpPowerStateOn();
 void readSensorData();
 void sendOnState();
 void sendOffState();
 void espDeepSleep(bool sendState, bool hardCutOff);
+void espDeepSleep(bool hardCutOff);
 void sendSensorState();
+void sendSensorStateNotTimed();
 void turnOffWaterPumpAfterSeconds();
 int getQuality();
 void setup_wifi();
