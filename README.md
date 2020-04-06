@@ -22,4 +22,5 @@ Components:
   
 MIT license
 
+![CIRCUITS](https://github.com/sblantipodi/solar_station/blob/master/data/img/fritzing_hardware_prj.png)
 
