@@ -48,8 +48,18 @@ const char* solar_station_waterpump_active_stat_topic = "stat/water_pump/ACTIVE"
 const char* solar_station_waterpump_power_topic = "stat/water_pump/POWER";
 const char* solar_station_power_topic = "stat/solarstation/POWER";
 const char* solar_station_mqtt_config = "stat/solarstation/CONFIG";
+const char* solar_station_mqtt_ack = "stat/solarstation/ACK";
 
 /****************** GLOBAL VARS ******************/
+// MQTT publish retry until ack received
+const int MQTT_PUBLISH_MAX_RETRY = 10; // max retry for MQTT publish
+bool onStateAckReceived = false;
+bool offStateAckReceived = false;
+bool waterPumpPowerStateOnAckReceived = false;
+bool waterPumpPowerStateOffAckReceived = false;
+bool sensorStateAckReceived = false;
+bool waterPumpActiveStateOffAckReceived = false;
+
 int blinked = 10;
 float temperature = 0;
 float pressure = 0;
@@ -83,12 +93,14 @@ const int delay_3000 = 3000;
 const int delay_2000 = 2000;
 const int delay_4000 = 4000;
 const int delay_5000 = 5000;
+const int FORCE_DEEP_SLEEP_TIME = 900000; // force deepSleep after 15 minutes
 
 // variable used for faster delay instead of arduino delay(), this custom delay prevent a lot of problem and memory leak
 const int tenSecondsPeriod = 10000;
 unsigned long timeNowStatus = 0;
 unsigned long nowMillis = 0; // used to turn off the pump after seconds
 unsigned long nowMillisStatus = 0; // used to send status every 5 seconds
+unsigned long nowMillisForceDeepSleepStatus = 0; // used to force deep sleep after 15 minutes
 #define MAX_RECONNECT 500
 unsigned int delayTime = 20;
 
@@ -104,6 +116,7 @@ PubSubClient client(espClient);
 bool processMQTTConfig(char *message);
 bool processUploadModeJson(char *message);
 bool processWaterPumpActiveJson(char *message);
+bool processAckTopic(char *message);
 void sendWaterPumpActiveStateOff();
 void readSensorData();
 void sendOnState();
@@ -116,3 +129,4 @@ void setup_wifi();
 void callback(char* topic, byte* payload, unsigned int length);
 void sendSensorStateAfterSeconds(int delay);
 int readAnalogBatteryLevel();
+void forceDeepSleep();

@@ -9,7 +9,7 @@
  *   - 88x142 5V solar panel
  *   - Sony VCT6 18650 Lithium Battery
  *   - TP4056 protected lithium charger
- *   - MT3608 DC DC step up module to step up battery voltage to 5V, ESP chip is happy with it
+ *   - MT3608 DC DC step up module to step up battery voltage to 5.5V, ESP chip is happy with it
  *   - MT3608 DC DC step up module to step up battery voltage to 8.66V, water pump is powerful with it
  *   - Relay Shield to safely power the water pump and "detach it from the circuit"
  *   - 100kΩ + 22kΩ + 4.4kΩ resistance for Battery voltage level monitoring circuit
@@ -161,6 +161,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
     if (!processMQTTConfig(message)) {
       return;
     }
+  } else if(strcmp(topic, solar_station_mqtt_ack) == 0) {
+    if (!processAckTopic(message)) {
+      return;
+    }
   } else if(strcmp(topic, solar_station_uploadmode_topic) == 0) {
     if (!processUploadModeJson(message)) {
       return;
@@ -212,12 +216,27 @@ bool processMQTTConfig(char* message) {
   nowMillis = millis();
   // Reset the millis used for send status activity
   nowMillisStatus = millis();
+  // Reset the millis used for force deep sleep after 15 minutes
+  nowMillisForceDeepSleepStatus = millis();
+
   // Remaining seconds
   waterPumpRemainingSeconds = (waterPumpSecondsOn / 1000);
   // if battery analog level is below 890 (3.6V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
   waterPumpCutOff = (readAnalogBatteryLevel() < 890); 
   
   return true;
+}
+
+bool processAckTopic(char* message) {
+    String ackMsg = message;
+
+    // if (strcmp(message, "sendOnState") != 0) {
+      onStateAckReceived = true;
+    // } else if (strcmp(message, "sendOffState") != 0) {
+      offStateAckReceived = true;
+    // } 
+    
+    return true;
 }
 
 bool processUploadModeJson(char* message) {
@@ -293,16 +312,18 @@ void sendSensorStateAfterSeconds(int delay) {
   }
 }
 
-void sendOnState() {
-  Serial.println("SENDING ON STATE");
+void sendOnState() {  
+  Serial.println("SENDING ON STATE"); 
   client.publish(solar_station_power_topic, on_cmd, true);
-  delay(delay_500);
+  delay(delay_500);  
 }
 
 void sendOffState() {
-  Serial.println("SENDING OFF STATE");
-  client.publish(solar_station_power_topic, off_cmd, true);
-  delay(delay_500);
+  // for (int i=0; (i < MQTT_PUBLISH_MAX_RETRY && !offStateAckReceived); i++) {   
+    Serial.println("SENDING OFF STATE");
+    client.publish(solar_station_power_topic, off_cmd, true);
+    delay(delay_500);
+  // }
 }
 
 void sendWaterPumpPowerState() {
@@ -325,14 +346,15 @@ void mqttReconnect() {
   int brokermqttcounter = 0;
   // Loop until we're reconnected
   while (!client.connected()) {   
-    // Attempt to connect
-    if (client.connect(SENSORNAME, mqtt_username, mqtt_password)) {
+    // Attempt to connect to MQTT server with QoS = 1 (pubsubclient supports QoS 1 for subscribe only, published msg have QoS 0 this is why I implemented a custom solution)
+    if (client.connect(SENSORNAME, mqtt_username, mqtt_password, 0, 1, 0, 0, 1)) {
       Serial.println(F("connected"));
       
       client.subscribe(smartostat_climate_state_topic);      
       client.subscribe(solar_station_uploadmode_topic);      
       client.subscribe(solar_station_waterpump_active_topic);      
       client.subscribe(solar_station_mqtt_config);      
+      client.subscribe(solar_station_mqtt_ack);
 
       delay(delay_2000);
       brokermqttcounter = 0;
@@ -373,12 +395,20 @@ void espDeepSleep(bool sendState, bool hardCutOff) {
     sendOffState();
   }
   dataMQTTReceived = false;
-  delay(delay_1500);
+  delay(delay_1000);
   // if hardCutOff sleep forever or until capacitive button is pressed
   if (hardCutOff) {
     ESP.deepSleep(0);
   } else {
     ESP.deepSleep(espSleepTime);
+  }
+}
+// force deepSleep after 15 minutes
+void forceDeepSleep() {
+  if(millis() > nowMillisForceDeepSleepStatus + FORCE_DEEP_SLEEP_TIME){
+    nowMillisForceDeepSleepStatus = millis();
+    digitalWrite(WATER_PUMP_PIN, LOW);
+    espDeepSleep(true, false);
   }
 }
 
@@ -444,7 +474,9 @@ void loop() {
       }
     }
   }
-  
+  // Force deepSleep after 15 minutes of activity, no matter what's happening, some errors occured probably.
+  forceDeepSleep();
+
   delay(delayTime);
   
 }
