@@ -464,7 +464,7 @@ void espDeepSleep(bool hardCutOff) {
 }
 // force deepSleep after 15 minutes
 void forceDeepSleep() {
-  if((millis() > nowMillisForceDeepSleepStatus + FORCE_DEEP_SLEEP_TIME) || (MQTT_PUBLISH_MAX_RETRY == number_of_attemps)){
+  if((millis() > nowMillisForceDeepSleepStatus + FORCE_DEEP_SLEEP_TIME) || (number_of_attemps >= MQTT_PUBLISH_MAX_RETRY)){
     nowMillisForceDeepSleepStatus = millis();
     digitalWrite(WATER_PUMP_PIN, LOW);
     espDeepSleep(true, false);
