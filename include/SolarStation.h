@@ -53,7 +53,8 @@ const char* SOLAR_STATION_MQTT_ACK = "stat/solarstation/ACK";
 
 /****************** GLOBAL VARS ******************/
 // MQTT publish retry until ack received
-const int MQTT_PUBLISH_MAX_RETRY = 10; // max retry for MQTT publish
+const int MQTT_PUBLISH_MAX_RETRY = 60; // max retry for MQTT publish
+int number_of_attemps = 0;
 bool onStateAckReceived = false;
 unsigned long onStateNowMillis = 0; 
 bool offStateAckReceived = false;

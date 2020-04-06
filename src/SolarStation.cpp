@@ -282,6 +282,7 @@ bool processWaterPumpActiveJson(char* message) {
 void sendSensorState() {
   if(millis() > sensorStateNowMillis + delay_1000){
     sensorStateNowMillis = millis();
+    number_of_attemps++;
     sendSensorStateNotTimed();
   }
 }
@@ -333,6 +334,7 @@ void sendSensorStateNotTimed() {
 void sendSensorStateAfterSeconds(int delay) {
   if(millis() > nowMillisStatusWithPumpOn + delay){
     nowMillisStatusWithPumpOn = millis();
+    number_of_attemps++;
     waterPumpRemainingSeconds = (waterPumpRemainingSeconds-(delay/1000));
     sendSensorStateNotTimed();
   }
@@ -341,6 +343,7 @@ void sendSensorStateAfterSeconds(int delay) {
 void sendOnState() {    
   if(millis() > onStateNowMillis + delay_1000){
     onStateNowMillis = millis();
+    number_of_attemps++;
     Serial.println("SENDING ON STATE"); 
     client.publish(SOLAR_STATION_POWER_TOPIC, ON_CMD, false);
     delay(delay_500);  
@@ -350,6 +353,7 @@ void sendOnState() {
 void sendOffState() {
   if(millis() > offStateNowMillis + delay_1000){
     offStateNowMillis = millis();
+    number_of_attemps++;
     Serial.println("SENDING OFF STATE");
     client.publish(SOLAR_STATION_POWER_TOPIC, OFF_CMD, false);
     delay(delay_500);
@@ -359,6 +363,7 @@ void sendOffState() {
 void sendWaterPumpPowerStateOff() {
   if(millis() > waterPumpPowerStateOffNowMillis + delay_1000){
     waterPumpPowerStateOffNowMillis = millis();
+    number_of_attemps++;
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE OFF");
     client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, OFF_CMD, false);
@@ -369,6 +374,7 @@ void sendWaterPumpPowerStateOff() {
 void sendWaterPumpPowerStateOn() {
   if(millis() > waterPumpPowerStateOnNowMillis + delay_1000){
     waterPumpPowerStateOnNowMillis = millis();
+    number_of_attemps++;
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE ON"); 
     client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, ON_CMD, false);
@@ -377,10 +383,14 @@ void sendWaterPumpPowerStateOn() {
 }
 
 void sendWaterPumpActiveStateOff() {
-  Serial.println(); 
-  Serial.println("SENDING WATER PUMP ACTIVE STATE OFF"); 
-  client.publish(SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC, OFF_CMD, false);
-  delay(delay_500);
+  if(millis() > waterPumpActiveStateOffNowMillis + delay_1000){
+    waterPumpActiveStateOffNowMillis = millis();
+    number_of_attemps++;
+    Serial.println(); 
+    Serial.println("SENDING WATER PUMP ACTIVE STATE OFF"); 
+    client.publish(SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC, OFF_CMD, false);
+    delay(delay_500);
+  }
 }
 
 /********************************** START MQTT RECONNECT *****************************************/
@@ -454,7 +464,7 @@ void espDeepSleep(bool hardCutOff) {
 }
 // force deepSleep after 15 minutes
 void forceDeepSleep() {
-  if(millis() > nowMillisForceDeepSleepStatus + FORCE_DEEP_SLEEP_TIME){
+  if((millis() > nowMillisForceDeepSleepStatus + FORCE_DEEP_SLEEP_TIME) || (MQTT_PUBLISH_MAX_RETRY == number_of_attemps)){
     nowMillisForceDeepSleepStatus = millis();
     digitalWrite(WATER_PUMP_PIN, LOW);
     espDeepSleep(true, false);
