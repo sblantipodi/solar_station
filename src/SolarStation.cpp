@@ -198,6 +198,13 @@ bool processMQTTConfig(char* message) {
   String waterPumpActiveStr = waterPumpActiveConst;
   waterPumpActive = waterPumpActiveStr == "on";
 
+  // if waterPumpActive 5 mqtt calls is ok
+  if (waterPumpActive) {
+    number_of_attemps = number_of_attemps - 6;
+  } else {
+    number_of_attemps = number_of_attemps - 4;
+  }
+
   const char* pumpSecondsConst = doc["pump_seconds"];
   String pumpSecondsStr = pumpSecondsConst;
   waterPumpSecondsOn = pumpSecondsStr.toDouble() * 1000;
@@ -323,7 +330,7 @@ void sendSensorStateNotTimed() {
 
     client.publish(SOLAR_STATION_STATE_TOPIC, buffer, false);
 
-    delay(delay_500);
+    delay(delay_10);
 
     // hardCutOff but only if uploadMode is false
     if (hardCutOff && !uploadMode) {
@@ -334,7 +341,6 @@ void sendSensorStateNotTimed() {
 void sendSensorStateAfterSeconds(int delay) {
   if(millis() > nowMillisStatusWithPumpOn + delay){
     nowMillisStatusWithPumpOn = millis();
-    number_of_attemps++;
     waterPumpRemainingSeconds = (waterPumpRemainingSeconds-(delay/1000));
     sendSensorStateNotTimed();
   }
@@ -342,22 +348,35 @@ void sendSensorStateAfterSeconds(int delay) {
 
 void sendOnState() {    
   if(millis() > onStateNowMillis + delay_1000){
-    onStateNowMillis = millis();
-    number_of_attemps++;
-    Serial.println("SENDING ON STATE"); 
-    client.publish(SOLAR_STATION_POWER_TOPIC, ON_CMD, false);
-    delay(delay_500);  
+    sendOnOffState(ON_CMD, onStateNowMillis);     
   }
 }
 
 void sendOffState() {
   if(millis() > offStateNowMillis + delay_1000){
-    offStateNowMillis = millis();
-    number_of_attemps++;
-    Serial.println("SENDING OFF STATE");
-    client.publish(SOLAR_STATION_POWER_TOPIC, OFF_CMD, false);
-    delay(delay_500);
+    sendOnOffState(OFF_CMD, offStateNowMillis);
   }
+}
+
+void sendOnOffState(const char *cmd, unsigned long stateMillis) {
+  number_of_attemps++;
+  Serial.println("SENDING STATE"); Serial.println(cmd);
+
+  StaticJsonDocument<BUFFER_SIZE> doc;
+  JsonObject root = doc.to<JsonObject>();
+  root["state"] = cmd;
+  if (cmd == OFF_CMD) {
+    offStateNowMillis = millis();
+  } else {
+    onStateNowMillis = millis();
+  }
+  root["number_of_attemps"] = number_of_attemps;
+  char buffer[measureJson(root) + 1];
+  serializeJson(root, buffer, sizeof(buffer));
+  serializeJsonPretty(root, Serial);
+  client.publish(SOLAR_STATION_POWER_TOPIC, buffer, false);
+
+  delay(delay_10);
 }
 
 void sendWaterPumpPowerStateOff() {
@@ -367,7 +386,7 @@ void sendWaterPumpPowerStateOff() {
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE OFF");
     client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, OFF_CMD, false);
-    delay(delay_500);
+    delay(delay_10);
   }
 }
 
@@ -378,7 +397,7 @@ void sendWaterPumpPowerStateOn() {
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE ON"); 
     client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, ON_CMD, false);
-    delay(delay_500);
+    delay(delay_10);
   }
 }
 
@@ -389,7 +408,7 @@ void sendWaterPumpActiveStateOff() {
     Serial.println(); 
     Serial.println("SENDING WATER PUMP ACTIVE STATE OFF"); 
     client.publish(SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC, OFF_CMD, false);
-    delay(delay_500);
+    delay(delay_10);
   }
 }
 
@@ -467,7 +486,7 @@ void forceDeepSleep() {
   if((millis() > nowMillisForceDeepSleepStatus + FORCE_DEEP_SLEEP_TIME) || (number_of_attemps >= MQTT_PUBLISH_MAX_RETRY)){
     nowMillisForceDeepSleepStatus = millis();
     digitalWrite(WATER_PUMP_PIN, LOW);
-    espDeepSleep(true, false);
+    espDeepSleep(false, false);
   }
 }
 
@@ -501,7 +520,7 @@ void loop() {
   }
  
   // MQTT config received, job start (MQTT Config sent via HA in QoS1)
-  if (dataMQTTReceived) {
+  if (dataMQTTReceived && onStateAckReceived) {
     // Upload mode ON loop with blu LED ON
     if (uploadMode) {
       digitalWrite(LED_BUILTIN, LOW);    

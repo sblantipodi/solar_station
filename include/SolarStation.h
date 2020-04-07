@@ -39,6 +39,7 @@ IPAddress mygateway(192, 168, 1, 1);
 // Serial rate for debug
 #define serialRate 115200
 
+
 /************* MQTT TOPICS **************************/
 // subscribe
 const char* SOLAR_STATION_UPLOADMODE_TOPIC = "cmnd/upload_mode/SLEEP";
@@ -72,6 +73,7 @@ int blinked = 10;
 float temperature = 0;
 float pressure = 0;
 float humidity = 0;
+bool contextInitialized = false;
 bool uploadMode = true; // if true, microcontroller does nothing but expose its OTA programmable interface
 bool waterPumpActive = false; // value received via MQTT config, if true, turn on the pump
 bool waterPumpPower = false; // value send via MQTT message to the broker, if true, the pump if turned on
@@ -93,6 +95,7 @@ const char* ON_CMD = "ON";
 const char* OFF_CMD = "OFF";
 
 String timedate = "OFF";
+const int delay_10 = 10;
 const int delay_50 = 50;
 const int delay_500 = 500;
 const int delay_1000 = 1000;
@@ -110,7 +113,7 @@ unsigned long nowMillisWaterPumpStatus = 0; // used to turn off the pump after s
 unsigned long nowMillisStatusWithPumpOn = 0; // used to send status every second when the pump is on
 unsigned long nowMillisForceDeepSleepStatus = 0; // used to force deep sleep after 15 minutes
 #define MAX_RECONNECT 500
-unsigned int delayTime = 20;
+unsigned int delayTime = 10;
 
 /**************************************** FOR JSON ***************************************/
 const int BUFFER_SIZE = JSON_OBJECT_SIZE(20);
@@ -131,6 +134,7 @@ void sendWaterPumpPowerStateOn();
 void readSensorData();
 void sendOnState();
 void sendOffState();
+void sendOnOffState(const char *cmd, unsigned long stateMillis);
 void espDeepSleep(bool sendState, bool hardCutOff);
 void espDeepSleep(bool hardCutOff);
 void sendSensorState();
