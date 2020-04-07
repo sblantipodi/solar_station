@@ -367,10 +367,11 @@ void sendOnOffState(const char *cmd, unsigned long stateMillis) {
   root["state"] = cmd;
   if (cmd == OFF_CMD) {
     offStateNowMillis = millis();
+    root["number_of_attemps"] = number_of_attemps;
   } else {
     onStateNowMillis = millis();
+    root["number_of_attemps"] = 0;
   }
-  root["number_of_attemps"] = number_of_attemps;
   char buffer[measureJson(root) + 1];
   serializeJson(root, buffer, sizeof(buffer));
   serializeJsonPretty(root, Serial);
