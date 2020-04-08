@@ -8,7 +8,6 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Secrets.h>
-#include <Adafruit_BME280.h>
 #include <Version.h>
 
 
