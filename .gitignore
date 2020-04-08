@@ -4,5 +4,4 @@
 .vscode/launch.json
 .vscode/ipch
 include/Secrets.h
-LICENSE
 platformio_ota.ini
