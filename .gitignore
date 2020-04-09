@@ -1,4 +1,4 @@
-.pio
 .vscode
+.pio/build
 include/Secrets.h
 platformio_ota.ini
