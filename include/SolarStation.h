@@ -116,8 +116,6 @@ unsigned int delayTime = 10;
 
 /**************************************** FOR JSON ***************************************/
 const int BUFFER_SIZE = JSON_OBJECT_SIZE(20);
-// edit this variable on C:\Users\sblantipodi\Documents\Arduino\libraries\PubSubClient\src\PubSubClient.h and set it to 512
-#define MQTT_MAX_PACKET_SIZE 512
 
 WiFiClient espClient;
 PubSubClient client(espClient);
