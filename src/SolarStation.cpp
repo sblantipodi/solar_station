@@ -300,7 +300,7 @@ void sendSensorStateNotTimed() {
     root["Whoami"] = SENSORNAME;
     root["IP"] = WiFi.localIP().toString();
     root["MAC"] = WiFi.macAddress();
-    root["ver"] = VERSION_SHORT;
+    root["ver"] = VERSION;
 
     root["time"] = timedate;
 
