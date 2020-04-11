@@ -29,6 +29,7 @@ Final working project with two DC to DC step up modules:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/2.jpg)
 
 ### Voltage divider: 
+
 - Voltage source = 4.2V (lithium battery at max)
 - R1 = 100kΩ 
 - R2 = 22kΩ + 4.4kΩ
