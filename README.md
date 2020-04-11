@@ -1,9 +1,7 @@
 # SOLAR STATION
-Arduino (ESP8266) solar powered project
-
-Smart solar watering system 
-
-DPsoftware (Davide Perini)
+Arduino (ESP8266) solar powered project  
+Smart solar watering system  
+DPsoftware (Davide Perini)  
 
 ## Components:
   - Arduino C++ sketch running on an ESP8266EX D1 Mini from Lolin running at 80MHz
@@ -35,7 +33,8 @@ Final working project with two DC to DC step up modules:
 - Voltage source = 4.2V (lithium battery at max)
 - R1 = 100kΩ 
 - R2 = 22kΩ + 4.4kΩ (in series)
-- Voltage Out = 3.3V (maximum voltage that a D1 Mini can read from the analog pin)
+- Voltage Out = 3.3V (maximum voltage that a D1 Mini can read from the analog pin)  
+
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/3b.jpg)
 
 ### From the top:
