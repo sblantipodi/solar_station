@@ -22,13 +22,13 @@ MIT license
 
 ![CIRCUITS](https://github.com/sblantipodi/solar_station/blob/master/data/img/fritzing_hardware_project.png)
 
-### First working project:
+#### First working project:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/1.jpg)
 
-Final working project with two DC to DC step up modules:
+#### Final working project with two DC to DC step up modules:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/2.jpg)
 
-### Voltage divider: 
+#### Voltage divider: 
 
 - Voltage source = 4.2V (lithium battery at max)
 - R1 = 100kΩ 
@@ -37,8 +37,8 @@ Final working project with two DC to DC step up modules:
 
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/3b.jpg)
 
-### From the top:
+#### From the top:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/4.jpg)
 
-### IP56 box:
+#### IP56 box:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/5.jpg)
