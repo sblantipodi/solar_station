@@ -1,6 +1,8 @@
 # SOLAR STATION
 Arduino (ESP8266) solar powered project
+
 Smart solar watering system 
+
 DPsoftware (Davide Perini)
 
 ## Components:
