@@ -1,8 +1,6 @@
 # SOLAR STATION
 Arduino (ESP8266) solar powered project
-
 Smart solar watering system 
-
 DPsoftware (Davide Perini)
 
 Components:
@@ -22,5 +20,23 @@ Components:
   
 MIT license
 
-![CIRCUITS](https://github.com/sblantipodi/solar_station/blob/master/data/img/fritzing_hardware_prj.png)
+![CIRCUITS](https://github.com/sblantipodi/solar_station/blob/master/data/img/fritzing_hardware_project.png)
 
+First working project:
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/1.jpg)
+
+Final working project with two DC to DC step up modules:
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/2.jpg)
+
+Voltage divider: 
+- Voltage source = 4.2V (lithium battery at max)
+- R1 = 100kΩ 
+- R2 = 22kΩ + 4.4kΩ
+- Voltage Out = 3.3V (maximum voltage that an ESP8266 on D1 Mini board can read from the analog pin)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/3b.jpg)
+
+From the top:
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/4.jpg)
+
+IP56 box
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/5.jpg)
