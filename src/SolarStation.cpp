@@ -17,6 +17,7 @@
  *   - TTP223 capacitive touch button with A contact soldered (HIGH signal when button is not pressed, 
  *     LOW signal when button is pressed), used to reset the microcontroller
  *   - Google Home Mini for Voice Recognition
+ *   - NOTE: GND of the battery MUST not be directly connected to the GND of the circuit.
  * MIT license
  */
 #include <FS.h> //this needs to be first, or it all crashes and burns...
@@ -198,13 +199,15 @@ bool processMQTTConfig(char* message) {
   String waterPumpActiveStr = waterPumpActiveConst;
   waterPumpActive = waterPumpActiveStr == "on";
 
-  // if waterPumpActive 5 mqtt calls is ok
-  if (waterPumpActive) {
-    number_of_attemps = number_of_attemps - 6;
-  } else {
-    number_of_attemps = number_of_attemps - 4;
+  // reconnection can cause mqttConfig to be reprocessed. don't reinitialize number of attemps
+  if (!dataMQTTReceived) {
+    if (waterPumpActive) {
+      number_of_attemps = number_of_attemps - 6;
+    } else {
+      number_of_attemps = number_of_attemps - 4;
+    }
   }
-
+  
   const char* pumpSecondsConst = doc["pump_seconds"];
   String pumpSecondsStr = pumpSecondsConst;
   waterPumpSecondsOn = pumpSecondsStr.toDouble() * 1000;
