@@ -32,7 +32,7 @@ Final working project with two DC to DC step up modules:
 
 - Voltage source = 4.2V (lithium battery at max)
 - R1 = 100kΩ 
-- R2 = 22kΩ + 4.4kΩ
+- R2 = 22kΩ + 4.4kΩ (in series)
 - Voltage Out = 3.3V (maximum voltage that an ESP8266 on D1 Mini board can read from the analog pin)
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/3b.jpg)
 
