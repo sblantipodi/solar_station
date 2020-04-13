@@ -44,4 +44,4 @@ MIT license
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/5.jpg)
 
 #### Home Assistant:
-![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/ha_screenshot.jpg)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/ha_screenshot_b.jpg)
