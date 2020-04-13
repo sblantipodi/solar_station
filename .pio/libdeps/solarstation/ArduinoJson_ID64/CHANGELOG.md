@@ -1,6 +1,15 @@
 ArduinoJson: change log
 =======================
 
+v6.15.1 (2020-04-08)
+-------
+
+* Fixed "maybe-uninitialized" warning (issue #1217)
+* Fixed "statement is unreachable" warning on IAR (issue #1233)
+* Fixed "pointless integer comparison" warning on IAR (issue #1233)
+* Added CMake "install" target (issue #1209)
+* Disabled alignment on AVR (issue #1231)
+
 v6.15.0 (2020-03-22)
 -------
 
@@ -32,7 +41,7 @@ v6.15.0 (2020-03-22)
 >
 > DynamicJsonDocument doc2 = doc1;
 > Serial.print(doc2.capacity());  // 8 with ArduinoJson 6.14
-                                  // 64 with ArduinoJson 6.15
+>                                 // 64 with ArduinoJson 6.15
 > ```
 >
 > I made this change to get consistent results between copy-constructor and move-constructor, and whether RVO applies or not.
