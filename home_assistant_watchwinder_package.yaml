@@ -1,0 +1,360 @@
+switch:
+  - platform: mqtt
+    name: upload_mode
+    command_topic: "cmnd/upload_mode/SLEEP"
+    qos: 0
+    retain: true
+    payload_on: "ON"
+    payload_off: "OFF"    
+    optimistic: false
+  - platform: mqtt
+    name: water_pump_active
+    command_topic: "cmnd/water_pump/ACTIVE"
+    state_topic: "stat/water_pump/ACTIVE"
+    qos: 0
+    payload_on: "ON"
+    payload_off: "OFF"    
+    optimistic: false
+    retain: false
+  - platform: mqtt
+    name: water_pump_power
+    command_topic: "cmnd/water_pump/POWER"
+    state_topic: "stat/water_pump/POWER"
+    qos: 1
+    retain: false
+    payload_on: "ON"
+    payload_off: "OFF"         
+  - platform: mqtt
+    name: "Solar Station"
+    command_topic: "cmnd/solarstation/POWER"
+    state_topic: "stat/solarstation/POWER"
+    qos: 1
+    retain: false
+    value_template: "{{ value_json['state'] }}"
+    state_on: "ON"
+    state_off: "OFF"  
+    
+    
+input_number:
+    solarstation_activation_hour:
+        name: Ore
+        icon: mdi:timer
+        initial: 21
+        min: 0
+        max: 23
+        step: 1
+    solarstation_activation_minute:
+        name: Minuti
+        icon: mdi:timer
+        initial: 30
+        min: 0
+        max: 59
+        step: 1
+    waterpump_activation_seconds:
+        name: Durata pompa in secondi
+        icon: mdi:timer
+        initial: 15
+        min: 0
+        max: 300
+        step: 1   
+    esp_sleep_time_minutes:
+        name: ESP Sleep in minuti
+        icon: mdi:timer
+        initial: 10
+        min: 0
+        max: 60
+        step: 1           
+
+sensor:
+  - platform: mqtt
+    state_topic: 'stat/solarstation/POWER'
+    name: 'Solar Station mqtt attemps'
+    unit_of_measurement: ' '
+    value_template: '{{ value_json.number_of_attemps }}'
+  - platform: mqtt
+    state_topic: 'tele/solarstation/STATE'
+    name: 'Last Seen Solar Station'
+    value_template: '{{ value_json.time }}'
+  - platform: mqtt
+    state_topic: 'tele/solarstation/STATE'
+    name: 'Battery Analog'
+    unit_of_measurement: ' '
+    value_template: '{{ value_json.battery }}'  
+  - platform: mqtt
+    state_topic: 'tele/solarstation/STATE'
+    name: 'Wifi Signal'
+    unit_of_measurement: ' '
+    value_template: '{{ value_json.wifi }}'    
+  - platform: mqtt
+    state_topic: 'tele/solarstation/STATE'
+    name: 'Solar Station Version'
+    unit_of_measurement: ' '
+    value_template: '{{ value_json.ver }}'  
+  - platform: mqtt
+    state_topic: 'tele/solarstation/STATE'
+    name: 'Solar Station Remaining Seconds'
+    unit_of_measurement: ' '
+    value_template: '{{ value_json.remaining_seconds }}'      
+  - platform: template
+    sensors:
+      solar_station_battery_percentage_zero_volt:
+        friendly_name: 'Battery Level zero volt'
+        unit_of_measurement: '%'
+        value_template: >-
+          {{ ((states("sensor.battery_analog") | int * 100) / 1024) | round(1) }}
+  - platform: template
+    sensors:
+      solar_station_battery_percentage:
+        friendly_name: 'Battery Level'
+        unit_of_measurement: '%'
+        value_template: >-
+          {{ ((100 * (states("sensor.battery_analog") | int - 816)) / (1024-816)) | round(1) }}
+  - platform: template
+    sensors:
+      solar_station_battery_voltage:
+        friendly_name: 'Battery Voltage'
+        unit_of_measurement: 'V'
+        value_template: >-
+          {{ ( ((states("sensor.battery_analog") | int) * 4.14) / 1024) | round(2) }}      
+  - platform: template
+    sensors:
+      activate_water_pump_active:
+        friendly_name: 'activate_water_pump_active'
+        value_template: >-
+          {{ "%0.02d:%0.02d" | format(states("input_number.solarstation_activation_hour") | int, states("input_number.solarstation_activation_minute") | int) }}    
+
+automation:
+  - id: '1584892439582'
+    alias: Send MQTT Data to Solar Station
+    description: ''
+    trigger:
+    - platform: mqtt
+      topic: stat/solarstation/POWER
+    - payload: 'ON'
+      platform: mqtt
+      topic: cmnd/upload_mode/SLEEP
+    - payload: 'ON'
+      platform: mqtt
+      topic: stat/water_pump/ACTIVE
+    - payload: 'OFF'
+      platform: mqtt
+      topic: stat/water_pump/ACTIVE      
+    - platform: state
+      entity_id: input_number.solarstation_activation_hour
+    - platform: state
+      entity_id: input_number.solarstation_activation_minute
+    - platform: state
+      entity_id: input_number.waterpump_activation_seconds
+    - platform: state
+      entity_id: input_number.esp_sleep_time_minutes      
+    condition: []
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "stat/solarstation/CONFIG"
+        qos: 1
+        retain: false
+        payload: '{"time":"{{now()}}", "upload_mode":"{{states.switch.upload_mode.state}}","esp_sleep_time_minutes":"{{states.input_number.esp_sleep_time_minutes.state}}", "pump_active":"{{states.switch.water_pump_active.state}}","pump_seconds":"{{states.input_number.waterpump_activation_seconds.state}}"}'  
+  - id: '1584892431832'
+    alias: Answer On to MQTT switch
+    description: ''
+    trigger:
+    - payload: 'ON'
+      platform: mqtt
+      topic: cmnd/water_pump/ACTIVE
+    condition: []
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "stat/water_pump/ACTIVE"
+        qos: 1
+        retain: false
+        payload: 'ON'
+  - id: '1584892431833'
+    alias: Answer Off to MQTT switch
+    description: ''
+    trigger:
+    - payload: 'OFF'
+      platform: mqtt
+      topic: cmnd/water_pump/ACTIVE
+    condition: []
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "stat/water_pump/ACTIVE"
+        qos: 1
+        retain: false
+        payload: 'OFF'
+  - id: '1539572431833'      
+    alias: Automazione attiva pompa
+    trigger:
+      platform: time_pattern
+      minutes: '/1'
+    condition:
+      condition: template
+      value_template: >-
+        {{ now().strftime("%H:%M") == states.sensor.activate_water_pump_active.state }}
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "cmnd/water_pump/ACTIVE"
+        qos: 1
+        retain: false
+        payload: 'ON'
+  - id: '19375033297585'      
+    alias: Solar Station Alive
+    trigger:
+      platform: time_pattern
+      seconds: '/60' # qui metti 60 sotto metti 780
+    condition:
+      condition: template
+      value_template: "{{ not (as_timestamp(now()) < (as_timestamp(states('sensor.last_seen_solar_station')) + 780)) }}"
+    action:
+    - data:
+        message: Solar Station ha smesso di rispondere 
+      service: notify.telegram_notifier        
+  - id: '15860283759078'
+    alias: Solar Station livello batteria basso
+    trigger:
+      - platform: state
+        entity_id: sensor.battery_analog
+    condition: 
+      condition: template
+      value_template: '{{ states.sensor.battery_analog.state | int < 890 }}'
+    action:
+    - data:
+        message: Livello batteria Solar Station basso. Pompa acqua disabilitata. ({{states.sensor.solar_station_battery_voltage.state}}V - {{states.sensor.battery_analog.state}} - {{states.sensor.solar_station_battery_percentage.state}}%)
+      service: notify.telegram_notifier  
+  - id: '15860283759079'
+    alias: Solar Station Hard Cut Off
+    trigger:
+      - platform: state
+        entity_id: sensor.battery_analog
+    condition: 
+      condition: template
+      value_template: '{{ states.sensor.battery_analog.state | int < 816 }}'
+    action:
+    - data:
+        message: Livello batteria Solar Station basso. HARD CUT OFF. ({{states.sensor.solar_station_battery_voltage.state}}V - {{states.sensor.battery_analog.state}} - {{states.sensor.solar_station_battery_percentage.state}}%)
+      service: notify.telegram_notifier        
+  - id: '15860283759080'
+    alias: Solar Station segnale wifi insufficiente
+    trigger:
+      - platform: state
+        entity_id: sensor.wifi_signal
+    condition: 
+      condition: template
+      value_template: '{{ states.sensor.wifi_signal.state | int < 60 }}'
+    action:
+    - data:
+        message: Livello Wifi insufficiente su Solar Station ({{states.sensor.wifi_signal.state}}%)
+      service: notify.telegram_notifier         
+  - id: '1584891937582'
+    alias: Upload Mode On
+    description: ''
+    trigger:
+    - platform: mqtt
+      topic: stat/solarstation/POWER
+    condition: 
+      - condition: template
+        value_template: '{{ states.switch.upload_mode.state == "on" }}'
+      - condition: template
+        value_template: '{{ trigger.payload_json.state == "ON" }}'            
+    action:
+    - data:
+        message: ESP8266EX pronto per la programmazione OTA
+      service: notify.telegram_notifier    
+  ## ACK Automation for custom implementation of QoS1 in pubsubclient that doesn't support QoS1 for publish if not for subscribe
+  - id: '258482749580'
+    alias: Ack sendOnState
+    trigger:
+    - platform: mqtt
+      topic: stat/solarstation/POWER
+    condition:
+      condition: template
+      value_template: '{{ trigger.payload_json.state == "ON" }}'      
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "stat/solarstation/ACK"
+        qos: 1
+        retain: "false"
+        payload: 'sendOnState'
+  - id: '258482749581'
+    alias: Ack sendOffState
+    trigger:
+    - platform: mqtt
+      topic: stat/solarstation/POWER
+    condition:
+      condition: template
+      value_template: '{{ trigger.payload_json.state == "OFF" }}'      
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "stat/solarstation/ACK"
+        qos: 1
+        retain: "false"
+        payload: 'sendOffState'
+  - id: '258482749582'
+    alias: Ack sendWaterPumpPowerStateOff
+    trigger:
+    - payload: 'OFF'
+      platform: mqtt
+      topic: stat/water_pump/POWER
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "stat/solarstation/ACK"
+        qos: 1
+        retain: "false"
+        payload: 'sendWaterPumpPowerStateOff'
+  - id: '258482749584'
+    alias: Ack sendSensorState
+    trigger:
+    - platform: mqtt
+      topic: tele/solarstation/STATE
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "stat/solarstation/ACK"
+        qos: 1
+        retain: "false"
+        payload: 'sendSensorState'
+  - id: '258482749585'
+    alias: Ack sendWaterPumpPowerStateOn
+    trigger:
+    - payload: 'ON'
+      platform: mqtt
+      topic: stat/water_pump/POWER
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "stat/solarstation/ACK"
+        qos: 1
+        retain: "false"
+        payload: 'sendWaterPumpPowerStateOn'
+  - id: '258482749586'
+    alias: Ack sendWaterPumpActiveStateOff
+    trigger:
+    - payload: 'OFF'
+      platform: mqtt
+      topic: stat/water_pump/ACTIVE
+    action:
+    - service: mqtt.publish
+      data_template:
+        topic: "stat/solarstation/ACK"
+        qos: 1
+        retain: "false"
+        payload: 'sendWaterPumpActiveStateOff'
+  - id: '2946783759079'
+    alias: Solar Station MQTT attemps
+    trigger:
+      - platform: state
+        entity_id: sensor.solar_station_mqtt_attemps
+    condition: 
+      condition: template
+      value_template: '{{ states.sensor.solar_station_mqtt_attemps.state | int > 0 }}'
+    action:
+    - data:
+        message: Numero di tentativi MQTT elevato. ({{states.sensor.solar_station_mqtt_attemps.state}})
+      service: notify.telegram_notifier              
