@@ -80,7 +80,7 @@ bool waterPumpPower = false; // value send via MQTT message to the broker, if tr
 bool dataMQTTReceived = false;  // don't do anything until MQTT server sent its configuration
 int waterPumpSecondsOn = 10000; // default 10 seconds, it changes after config received via MQTT message 
 int waterPumpRemainingSeconds = 10;
-double espSleepTime = 600e6; // 15e6 = 15 seconds
+double espSleepTime = 600e6; // 15e6 = 15 seconds, 600e6 1 hour
 int sensorValue = 0;  // analogRead to measure battery level via a voltage divider
 // LED_BUILTIN vars
 unsigned long previousMillis = 0;    // will store last time LED was updated
