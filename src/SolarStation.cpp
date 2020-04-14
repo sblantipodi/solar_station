@@ -218,7 +218,7 @@ bool processMQTTConfig(char* message) {
   // if sleepTime is 1 sleep 1 second, if it's 61 sleep forever, sleep N minutes otherwise
   if ((espSleepTimeMinutesStr.toDouble() >= 1)) {
     espSleepTime = (espSleepTimeMinutesStr.toDouble() * 60 * 1000000);
-  } if ((espSleepTimeMinutesStr.toDouble() >= 61)) {
+  } else if ((espSleepTimeMinutesStr.toDouble() >= 61)) {
     espSleepTime = 0; // 0 means sleep forever
   } else {
     espSleepTime = (1e6);
