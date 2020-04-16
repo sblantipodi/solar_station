@@ -20,7 +20,6 @@
  *   - NOTE: GND of the battery MUST not be directly connected to the GND of the circuit.
  * MIT license
  */
-#include <FS.h> //this needs to be first, or it all crashes and burns...
 #include <SolarStation.h>
 
 /********************************** START SETUP*****************************************/

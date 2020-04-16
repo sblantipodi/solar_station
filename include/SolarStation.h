@@ -1,3 +1,4 @@
+#include <FS.h> //this needs to be first, or it all crashes and burns...
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
@@ -121,7 +122,7 @@ const int BUFFER_SIZE = JSON_OBJECT_SIZE(20);
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-/********************************** FUNCTION DECLARATION (NEEDED BY VSCODE WHILE COMPILING CPP FILES) *****************************************/
+/********************************** FUNCTION DECLARATION (NEEDED BY PLATFORMIO WHILE COMPILING CPP FILES) *****************************************/
 bool processMQTTConfig(char *message);
 bool processUploadModeJson(char *message);
 bool processWaterPumpActiveJson(char *message);
