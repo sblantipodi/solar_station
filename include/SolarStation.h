@@ -96,22 +96,22 @@ const char* ON_CMD = "ON";
 const char* OFF_CMD = "OFF";
 
 String timedate = "OFF";
-const int delay_10 = 10;
-const int delay_50 = 50;
-const int delay_500 = 500;
-const int delay_1000 = 1000;
-const int delay_1500 = 1500;
-const int delay_3000 = 3000;
-const int delay_2000 = 2000;
-const int delay_4000 = 4000;
-const int delay_5000 = 5000;
+const int DELAY_10 = 10;
+const int DELAY_50 = 50;
+const int DELAY_500 = 500;
+const int DELAY_1000 = 1000;
+const int DELAY_1500 = 1500;
+const int DELAY_3000 = 3000;
+const int DELAY_2000 = 2000;
+const int DELAY_4000 = 4000;
+const int DELAY_5000 = 5000;
 const int FORCE_DEEP_SLEEP_TIME = 900000; // force deepSleep after 15 minutes
 
 // variable used for faster delay instead of arduino delay(), this custom delay prevent a lot of problem and memory leak
-const int tenSecondsPeriod = 10000;
+const int TENSECONDSPERIOD = 10000;
 unsigned long timeNowStatus = 0;
 unsigned long nowMillisWaterPumpStatus = 0; // used to turn off the pump after seconds
-unsigned long nowMillisStatusWithPumpOn = 0; // used to send status every second when the pump is on
+unsigned long nowMillisSendStatus = 0; // used to send status every second when the pump is on or when in upload mode
 unsigned long nowMillisForceDeepSleepStatus = 0; // used to force deep sleep after 15 minutes
 #define MAX_RECONNECT 500
 unsigned int delayTime = 10;

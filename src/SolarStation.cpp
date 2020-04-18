@@ -77,7 +77,7 @@ void setup_wifi() {
   // DPsoftware domotics 
   Serial.println();
   Serial.println(F("DPsoftware domotics"));
-  delay(delay_3000);
+  delay(DELAY_3000);
   
   Serial.println(F("Connecting to: "));
   Serial.print(ssid); Serial.println(F("..."));
@@ -85,7 +85,7 @@ void setup_wifi() {
   Serial.print(F("Connecting to "));
   Serial.print(ssid);  
 
-  delay(delay_2000);
+  delay(DELAY_2000);
 
   WiFi.persistent(false);   // Solve possible wifi init errors (re-add at 6.2.1.16 #4044, #4083)
   WiFi.disconnect(true);    // Delete SDK wifi config
@@ -127,7 +127,7 @@ void setup_wifi() {
   Serial.println(F("WIFI CONNECTED"));
   Serial.println(WiFi.localIP());
 
-  delay(delay_1500);
+  delay(DELAY_1500);
 
 }
 
@@ -193,6 +193,9 @@ bool processMQTTConfig(char* message) {
   const char* uploadModeConst = doc["upload_mode"];
   String uploadModeStr = uploadModeConst;
   uploadMode = uploadModeStr == "on";
+  if (uploadMode) {
+    nowMillisSendStatus = millis(); // reset the counter, first ten seconds the blu led will be on
+  }
   
   const char* waterPumpActiveConst = doc["pump_active"];
   String waterPumpActiveStr = waterPumpActiveConst;
@@ -232,7 +235,7 @@ bool processMQTTConfig(char* message) {
   // Reset the millis used for water pump activity
   nowMillisWaterPumpStatus = millis();
   // Reset the millis used for send status activity
-  nowMillisStatusWithPumpOn = millis();
+  nowMillisSendStatus = millis();
   // Reset the millis used for force deep sleep after 15 minutes
   nowMillisForceDeepSleepStatus = millis();
   // Reset the millis used for MQTT QoS1
@@ -297,7 +300,7 @@ bool processWaterPumpActiveJson(char* message) {
 
 /********************************** SEND STATE *****************************************/
 void sendSensorState() {
-  if(millis() > sensorStateNowMillis + delay_1000){
+  if(millis() > sensorStateNowMillis + DELAY_1000){
     sensorStateNowMillis = millis();
     number_of_attemps++;
     sendSensorStateNotTimed();
@@ -340,7 +343,7 @@ void sendSensorStateNotTimed() {
 
     client.publish(SOLAR_STATION_STATE_TOPIC, buffer, false);
 
-    delay(delay_10);
+    delay(DELAY_10);
 
     // hardCutOff but only if uploadMode is false
     if (hardCutOff && !uploadMode) {
@@ -349,21 +352,21 @@ void sendSensorStateNotTimed() {
 }
 
 void sendSensorStateAfterSeconds(int delay) {
-  if(millis() > nowMillisStatusWithPumpOn + delay){
-    nowMillisStatusWithPumpOn = millis();
+  if(millis() > nowMillisSendStatus + delay){
+    nowMillisSendStatus = millis();
     waterPumpRemainingSeconds = (waterPumpRemainingSeconds-(delay/1000));
     sendSensorStateNotTimed();
   }
 }
 
 void sendOnState() {    
-  if(millis() > onStateNowMillis + delay_1000){
+  if(millis() > onStateNowMillis + DELAY_1000){
     sendOnOffState(ON_CMD, onStateNowMillis);     
   }
 }
 
 void sendOffState() {
-  if(millis() > offStateNowMillis + delay_1000){
+  if(millis() > offStateNowMillis + DELAY_1000){
     sendOnOffState(OFF_CMD, offStateNowMillis);
   }
 }
@@ -387,39 +390,39 @@ void sendOnOffState(const char *cmd, unsigned long stateMillis) {
   serializeJsonPretty(root, Serial);
   client.publish(SOLAR_STATION_POWER_TOPIC, buffer, false);
 
-  delay(delay_10);
+  delay(DELAY_10);
 }
 
 void sendWaterPumpPowerStateOff() {
-  if(millis() > waterPumpPowerStateOffNowMillis + delay_1000){
+  if(millis() > waterPumpPowerStateOffNowMillis + DELAY_1000){
     waterPumpPowerStateOffNowMillis = millis();
     number_of_attemps++;
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE OFF");
     client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, OFF_CMD, false);
-    delay(delay_10);
+    delay(DELAY_10);
   }
 }
 
 void sendWaterPumpPowerStateOn() {
-  if(millis() > waterPumpPowerStateOnNowMillis + delay_1000){
+  if(millis() > waterPumpPowerStateOnNowMillis + DELAY_1000){
     waterPumpPowerStateOnNowMillis = millis();
     number_of_attemps++;
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE ON"); 
     client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, ON_CMD, false);
-    delay(delay_10);
+    delay(DELAY_10);
   }
 }
 
 void sendWaterPumpActiveStateOff() {
-  if(millis() > waterPumpActiveStateOffNowMillis + delay_1000){
+  if(millis() > waterPumpActiveStateOffNowMillis + DELAY_1000){
     waterPumpActiveStateOffNowMillis = millis();
     number_of_attemps++;
     Serial.println(); 
     Serial.println("SENDING WATER PUMP ACTIVE STATE OFF"); 
     client.publish(SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC, OFF_CMD, false);
-    delay(delay_10);
+    delay(DELAY_10);
   }
 }
 
@@ -438,7 +441,7 @@ void mqttReconnect() {
       client.subscribe(SOLAR_STATION_MQTT_CONFIG);      
       client.subscribe(SOLAR_STATION_MQTT_ACK);
 
-      delay(delay_2000);
+      delay(DELAY_2000);
       brokermqttcounter = 0;
     } else {
       Serial.println(F("Number of attempts="));
@@ -484,7 +487,7 @@ void espDeepSleep(bool sendState, bool hardCutOff) {
 }
 void espDeepSleep(bool hardCutOff) { 
   dataMQTTReceived = false;
-  delay(delay_1000);
+  delay(DELAY_1000);
   // if hardCutOff sleep forever or until capacitive button is pressed
   if (hardCutOff) {
     ESP.deepSleep(0);
@@ -536,6 +539,7 @@ void loop() {
     if (uploadMode) {
       digitalWrite(LED_BUILTIN, LOW);    
       digitalWrite(WATER_PUMP_PIN, LOW);
+      sendSensorStateAfterSeconds(TENSECONDSPERIOD); // this sendState does not wait for an ack    
     } else {
       // Upload mode OFF, turn off blu LED
       digitalWrite(LED_BUILTIN, HIGH);    
@@ -551,7 +555,7 @@ void loop() {
             if (waterPumpPower) {
               turnOffWaterPumpAfterSeconds(); // Pump is turned off as soon as the delay is reached, no matter for ACK from the MQTT server
               // continue to send state every seconds when the pump is turned on
-              sendSensorStateAfterSeconds(delay_1000); // this sendState does not wait for an ack    
+              sendSensorStateAfterSeconds(DELAY_1000); // this sendState does not wait for an ack    
             } else {
               if (!waterPumpPowerStateOffAckReceived) {
                 sendWaterPumpPowerStateOff(); // Update the MQTT server with off state of the pump when it is possible
