@@ -131,22 +131,40 @@ void setup_wifi() {
 
 }
 
-/*
-   Return the quality (Received Signal Strength Indicator) of the WiFi network.
-   Returns a number between 0 and 100 if WiFi is connected.
-   Returns -1 if WiFi is disconnected.
-*/
-int getQuality() {
-  if (WiFi.status() != WL_CONNECTED)
-    return -1;
-  int dBm = WiFi.RSSI();
-  if (dBm <= -100)
-    return 0;
-  if (dBm >= -50)
-    return 100;
-  return 2 * (dBm + 100);
-}
+/********************************** START MQTT RECONNECT *****************************************/
+void mqttReconnect() {
+  // how many attemps to MQTT connection
+  int brokermqttcounter = 0;
+  // Loop until we're reconnected
+  while (!client.connected()) {   
+    // Attempt to connect to MQTT server with QoS = 1 (pubsubclient supports QoS 1 for subscribe only, published msg have QoS 0 this is why I implemented a custom solution)
+    if (client.connect(SENSORNAME, mqtt_username, mqtt_password, 0, 1, 0, 0, 1)) {
+      Serial.println(F("connected"));
+                
+      client.subscribe(SOLAR_STATION_UPLOADMODE_TOPIC);      
+      client.subscribe(SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC);      
+      client.subscribe(SOLAR_STATION_MQTT_CONFIG);      
+      client.subscribe(SOLAR_STATION_MQTT_ACK);
 
+      delay(DELAY_2000);
+      brokermqttcounter = 0;
+    } else {
+      Serial.println(F("Number of attempts="));
+      Serial.println(brokermqttcounter);
+      // after 10 attemps all peripherals are shut down
+      digitalWrite(WATER_PUMP_PIN, LOW);
+      if (brokermqttcounter >= MAX_RECONNECT) {
+        Serial.println(F("Max retry reached, powering off peripherals."));
+        espDeepSleep(false, false);
+      } else if (brokermqttcounter > 10000) {
+        brokermqttcounter = 0;
+      }
+      brokermqttcounter++;
+      // Wait 5 seconds before retrying
+      delay(500);
+    }
+  }
+}
 
 /********************************** START CALLBACK*****************************************/
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -177,7 +195,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 }
 
-/********************************** START PROCESS JSON*****************************************/
+/********************************** START PROCESS JSON *****************************************/
 bool processMQTTConfig(char* message) {
   StaticJsonDocument<BUFFER_SIZE> doc;
   DeserializationError error = deserializeJson(doc, message);
@@ -354,7 +372,9 @@ void sendSensorStateNotTimed() {
 void sendSensorStateAfterSeconds(int delay) {
   if(millis() > nowMillisSendStatus + delay){
     nowMillisSendStatus = millis();
-    waterPumpRemainingSeconds = (waterPumpRemainingSeconds-(delay/1000));
+    if (!uploadMode) {
+      waterPumpRemainingSeconds = (waterPumpRemainingSeconds-(delay/1000));
+    }    
     sendSensorStateNotTimed();
   }
 }
@@ -426,39 +446,20 @@ void sendWaterPumpActiveStateOff() {
   }
 }
 
-/********************************** START MQTT RECONNECT *****************************************/
-void mqttReconnect() {
-  // how many attemps to MQTT connection
-  int brokermqttcounter = 0;
-  // Loop until we're reconnected
-  while (!client.connected()) {   
-    // Attempt to connect to MQTT server with QoS = 1 (pubsubclient supports QoS 1 for subscribe only, published msg have QoS 0 this is why I implemented a custom solution)
-    if (client.connect(SENSORNAME, mqtt_username, mqtt_password, 0, 1, 0, 0, 1)) {
-      Serial.println(F("connected"));
-                
-      client.subscribe(SOLAR_STATION_UPLOADMODE_TOPIC);      
-      client.subscribe(SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC);      
-      client.subscribe(SOLAR_STATION_MQTT_CONFIG);      
-      client.subscribe(SOLAR_STATION_MQTT_ACK);
-
-      delay(DELAY_2000);
-      brokermqttcounter = 0;
-    } else {
-      Serial.println(F("Number of attempts="));
-      Serial.println(brokermqttcounter);
-      // after 10 attemps all peripherals are shut down
-      digitalWrite(WATER_PUMP_PIN, LOW);
-      if (brokermqttcounter >= MAX_RECONNECT) {
-        Serial.println(F("Max retry reached, powering off peripherals."));
-        espDeepSleep(false, false);
-      } else if (brokermqttcounter > 10000) {
-        brokermqttcounter = 0;
-      }
-      brokermqttcounter++;
-      // Wait 5 seconds before retrying
-      delay(500);
-    }
-  }
+/*
+   Return the quality (Received Signal Strength Indicator) of the WiFi network.
+   Returns a number between 0 and 100 if WiFi is connected.
+   Returns -1 if WiFi is disconnected.
+*/
+int getQuality() {
+  if (WiFi.status() != WL_CONNECTED)
+    return -1;
+  int dBm = WiFi.RSSI();
+  if (dBm <= -100)
+    return 0;
+  if (dBm >= -50)
+    return 100;
+  return 2 * (dBm + 100);
 }
 
 /********************************** WATER PUMP MANAGEMENT (non blocking delay) *****************************************/
