@@ -54,7 +54,7 @@ If you like **Solar Station**, give it a star, or fork it and contribute!
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/5.jpg)
 
 ## Home Assistant Mobile Client Screenshots
-![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/ha_screenshot_b.jpg)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/ha_screenshot_d.jpg)
 
 ## License
 This program is licensed under MIT License
