@@ -1,7 +1,18 @@
-# SOLAR STATION
-Arduino (ESP8266) solar powered project  
+# Solar Station
 Smart solar watering system  
-DPsoftware (Davide Perini)  
+_Written for Arduino IDE and PlatformIO._
+
+[![GitHub version](https://img.shields.io/github/v/release/sblantipodi/solar_station.svg)](https://img.shields.io/github/v/release/sblantipodi/solar_station.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/sblantipodi/solar_station/graphs/commit-activity)
+
+If you like **Solar Station**, give it a star, or fork it and contribute!
+
+[![GitHub stars](https://img.shields.io/github/stars/sblantipodi/solar_station.svg?style=social&label=Star)](https://github.com/sblantipodi/solar_station/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/sblantipodi/solar_station.svg?style=social&label=Fork)](https://github.com/sblantipodi/solar_station/network)
+
+## Credits
+- Davide Perini
 
 ## Components:
   - Arduino C++ sketch running on an ESP8266EX D1 Mini from Lolin running at 80MHz
@@ -18,17 +29,16 @@ DPsoftware (Davide Perini)
     LOW signal when button is pressed), used to reset the microcontroller
   - Google Home Mini for Voice Recognition
   
-MIT license
-
+## Schematic  
 ![CIRCUITS](https://github.com/sblantipodi/solar_station/blob/master/data/img/fritzing_hardware_project.png)
 
-#### First working project:
+## First working project:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/1.jpg)
 
-#### Final working project with two DC to DC step up modules:
+## Final working project with two DC to DC step up modules:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/2.jpg)
 
-#### Voltage divider: 
+## Voltage divider: 
 
 - Voltage source = 4.2V (lithium battery at max)
 - R1 = 100kΩ 
@@ -37,11 +47,16 @@ MIT license
 
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/3b.jpg)
 
-#### From the top:
+## From the top:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/4.jpg)
 
-#### IP56 box:
+## IP56 box:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/5.jpg)
 
-#### Home Assistant:
+## Home Assistant Mobile Client Screenshots
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/ha_screenshot_b.jpg)
+
+## License
+This program is licensed under MIT License
+
+
