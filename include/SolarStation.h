@@ -9,7 +9,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Secrets.h>
-#include <Version.h>
+#include "Version.h"
 
 
 /****************** WIFI and MQTT INFO ******************/
