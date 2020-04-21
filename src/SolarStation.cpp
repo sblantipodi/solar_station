@@ -52,7 +52,20 @@ void setup() {
 
 /********************************** MANAGE WIFI AND MQTT DISCONNECTION *****************************************/
 void manageDisconnections() {
-  
+
+  // if fastDisconnectionManagement we need to execute the callback immediately, 
+  // example: power off a watering system can't wait MAX_RECONNECT attemps
+  fastDisconnectionManagement = true;
+
+  // Shut down water pump on small disconnections
+  if (wifiReconnectAttemp > 10 || mqttReconnectAttemp > 10) {
+      digitalWrite(WATER_PUMP_PIN, LOW);      
+  }
+  // Shut down ESP on MAX_RECONNECT attemp
+  if (wifiReconnectAttemp > MAX_RECONNECT || mqttReconnectAttemp > MAX_RECONNECT) {
+    espDeepSleep(false, false);
+  }
+
 }
 
 /********************************** MQTT SUBSCRIPTIONS *****************************************/
@@ -97,100 +110,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     }
   }
 
-}
-
-/********************************** START SETUP WIFI *****************************************/
-void setup_wifi() {
-
-  unsigned int reconnectAttemp = 0;
-
-  // DPsoftware domotics 
-  Serial.println();
-  Serial.println(F("DPsoftware domotics"));
-  delay(DELAY_3000);
-  
-  Serial.println(F("Connecting to: "));
-  Serial.print(ssid); Serial.println(F("..."));
-  Serial.println();
-  Serial.print(F("Connecting to "));
-  Serial.print(ssid);  
-
-  delay(DELAY_2000);
-
-  WiFi.persistent(false);   // Solve possible wifi init errors (re-add at 6.2.1.16 #4044, #4083)
-  WiFi.disconnect(true);    // Delete SDK wifi config
-  delay(200);
-  WiFi.mode(WIFI_STA);      // Disable AP mode
-  //WiFi.setSleepMode(WIFI_NONE_SLEEP);
-  WiFi.setAutoConnect(true);  
-  #ifdef TARGET_SOLAR_WS
-    WiFi.config(arduinoip, mydns, mygateway);
-  #endif  
-
-  WiFi.hostname(SENSORNAME);
-
-  // Set wifi power in dbm range 0/0.25, set to 0 to reduce PIR false positive due to wifi power, 0 low, 20.5 max.
-  #ifdef TARGET_SOLAR_WS
-    WiFi.setOutputPower(20.5);
-  #endif
-
-  WiFi.begin(ssid, password);
-
-  // loop here until connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(F("."));
-    reconnectAttemp++;
-    if (reconnectAttemp > 10) {
-      digitalWrite(WATER_PUMP_PIN, LOW);      
-      Serial.print(F("Reconnect attemp= "));
-      Serial.print(reconnectAttemp);
-      if (reconnectAttemp >= MAX_RECONNECT) {
-        Serial.println(F("Max retry reached, powering off peripherals."));
-        espDeepSleep(false, false);
-      }
-    } else if (reconnectAttemp > 10000) {
-      reconnectAttemp = 0;
-    }
-  }
-
-  Serial.println(F("WIFI CONNECTED"));
-  Serial.println(WiFi.localIP());
-
-  delay(DELAY_1500);
-
-}
-
-/********************************** START MQTT RECONNECT *****************************************/
-void mqttReconnect() {
-  // how many attemps to MQTT connection
-  int brokermqttcounter = 0;
-  // Loop until we're reconnected
-  while (!mqttClient.connected()) {   
-    // Attempt to connect to MQTT server with QoS = 1 (pubsubclient supports QoS 1 for subscribe only, published msg have QoS 0 this is why I implemented a custom solution)
-    if (mqttClient.connect(SENSORNAME, mqtt_username, mqtt_password, 0, 1, 0, 0, 1)) {
-      Serial.println(F("connected"));
-                
-
-
-      delay(DELAY_2000);
-      brokermqttcounter = 0;
-    } else {
-      Serial.println(F("Number of attempts="));
-      Serial.println(brokermqttcounter);
-      // after 10 attemps all peripherals are shut down
-      digitalWrite(WATER_PUMP_PIN, LOW);
-      if (brokermqttcounter >= MAX_RECONNECT) {
-        Serial.println(F("Max retry reached, powering off peripherals."));
-        espDeepSleep(false, false);
-      } else if (brokermqttcounter > 10000) {
-        brokermqttcounter = 0;
-      }
-      brokermqttcounter++;
-      // Wait 5 seconds before retrying
-      delay(500);
-    }
-  }
 }
 
 /********************************** START PROCESS JSON *****************************************/
@@ -345,7 +264,7 @@ void sendSensorStateNotTimed() {
       root["WATER_PUMP_CUT_OFF"] = batteryLevelAnalog;
     }
     root["battery"] = batteryLevelAnalog;
-    root["wifi"] = getQuality();
+    root["wifi"] = bootstrapManager.getSignalQuality();
     root["frequency"] = ESP.getCpuFreqMHz();  
     root["remaining_seconds"] = waterPumpRemainingSeconds;  
     
