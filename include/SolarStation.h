@@ -1,34 +1,44 @@
-#include <FS.h> //this needs to be first, or it all crashes and burns...
-#include <Arduino.h>
-#include <ArduinoJson.h>
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
-#include <ArduinoOTA.h>
-#include <SPI.h>
-#include <Wire.h>
-#include <Secrets.h>
+/*
+  SolarStation.h - Smart solar watering system 
+  
+  Copyright (C) 2020  Davide Perini
+  
+  Permission is hereby granted, free of charge, to any person obtaining a copy of 
+  this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+  copies of the Software, and to permit persons to whom the Software is 
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in 
+  all copies or substantial portions of the Software.
+  
+  You should have received a copy of the MIT License along with this program.  
+  If not, see <https://opensource.org/licenses/MIT/>.
+
+  * Components:
+   - Arduino C++ sketch running on an ESP8266EX D1 Mini from Lolin running at 80MHz
+   - Raspberry + Home Assistant for Web GUI, automations and MQTT server
+   - 88x142 5V solar panel
+   - Sony VCT6 18650 Lithium Battery
+   - TP4056 protected lithium charger
+   - MT3608 DC DC step up module to step up battery voltage to 5.5V, ESP chip is happy with it
+   - MT3608 DC DC step up module to step up battery voltage to 8.66V, water pump is powerful with it
+   - Relay Shield to safely power the water pump and "detach it from the circuit"
+   - 100kΩ + 22kΩ + 4.4kΩ resistance for Battery voltage level monitoring circuit
+   - 3.5/9V water pump (3W @ 9V)
+   - TTP223 capacitive touch button with A contact soldered (HIGH signal when button is not pressed, 
+     LOW signal when button is pressed), used to reset the microcontroller
+   - Google Home Mini for Voice Recognition
+   NOTE: GND of the battery MUST not be directly connected to the GND of the circuit.
+*/
+
 #include "Version.h"
+#include "../arduino_bootstrapper/core/BootstrapManager.h"
 
-
-/****************** WIFI and MQTT INFO ******************/
-// MQTT server port
-const int mqtt_port = 1883;
-// DNS address for the microcontroller:
-IPAddress mydns(192, 168, 1, 1);
-// GATEWAY address for the microcontroller:
-IPAddress mygateway(192, 168, 1, 1);
-
-/****************** OTA ******************/
-#ifdef TARGET_SOLAR_WS
-  // SENSORNAME will be used as device network name
-  #define SENSORNAME "solar_station"
-  // Port for the OTA firmware uplaod
-  int OTAport = 8290;
-  // Static IP address for the microcontroller:
-  IPAddress arduinoip(192, 168, 1, 59); 
-#endif 
+/****************** BOOTSTRAP MANAGER ******************/
+BootstrapManager bootstrapManager;
+Helpers helper;
 
 /**************************** PIN DEFINITIONS **************************************************/
 #define OLED_RESET LED_BUILTIN // Pin used for integrated D1 Mini blue LED
@@ -36,10 +46,6 @@ IPAddress mygateway(192, 168, 1, 1);
 #define WATER_PUMP_PIN D1 // D1 Pin, water pump
 #define WATER_LEAK_PIN D6 // Water leak pin
 // NOTE: TP223 capacitive touch button is not registered because I don't manage it from sketch, it is only used to reset the microcontroller (or to wake it up from the deep sleed)
-
-// Serial rate for debug
-#define serialRate 115200
-
 
 /************* MQTT TOPICS **************************/
 // subscribe
@@ -83,28 +89,10 @@ int waterPumpSecondsOn = 10000; // default 10 seconds, it changes after config r
 int waterPumpRemainingSeconds = 10;
 double espSleepTime = 600e6; // 15e6 = 15 seconds, 600e6 1 hour
 int sensorValue = 0;  // analogRead to measure battery level via a voltage divider
-// LED_BUILTIN vars
-unsigned long previousMillis = 0;    // will store last time LED was updated
-const long interval = 200;           // interval at which to blink (milliseconds)
-bool ledTriggered = false;
-const int blinkTimes = 6;            // 6 equals to 3 blink on and 3 off
-int blinkCounter = 0;
+
 bool hardCutOff = false;
 bool waterPumpCutOff = true;
-// MQTT cmnd
-const char* ON_CMD = "ON";
-const char* OFF_CMD = "OFF";
 
-String timedate = "OFF";
-const int DELAY_10 = 10;
-const int DELAY_50 = 50;
-const int DELAY_500 = 500;
-const int DELAY_1000 = 1000;
-const int DELAY_1500 = 1500;
-const int DELAY_3000 = 3000;
-const int DELAY_2000 = 2000;
-const int DELAY_4000 = 4000;
-const int DELAY_5000 = 5000;
 const int FORCE_DEEP_SLEEP_TIME = 900000; // force deepSleep after 15 minutes
 
 // variable used for faster delay instead of arduino delay(), this custom delay prevent a lot of problem and memory leak
@@ -113,16 +101,14 @@ unsigned long timeNowStatus = 0;
 unsigned long nowMillisWaterPumpStatus = 0; // used to turn off the pump after seconds
 unsigned long nowMillisSendStatus = 0; // used to send status every second when the pump is on or when in upload mode
 unsigned long nowMillisForceDeepSleepStatus = 0; // used to force deep sleep after 15 minutes
-#define MAX_RECONNECT 500
-unsigned int delayTime = 10;
-
-/**************************************** FOR JSON ***************************************/
-const int BUFFER_SIZE = JSON_OBJECT_SIZE(20);
-
-WiFiClient espClient;
-PubSubClient client(espClient);
 
 /********************************** FUNCTION DECLARATION (NEEDED BY PLATFORMIO WHILE COMPILING CPP FILES) *****************************************/
+// Bootstrap functions
+void callback(char* topic, byte* payload, unsigned int length);
+void manageDisconnections();
+void manageQueueSubscription();
+void manageHardwareButton();
+// Project specific functions
 bool processMQTTConfig(char *message);
 bool processUploadModeJson(char *message);
 bool processWaterPumpActiveJson(char *message);
@@ -139,9 +125,6 @@ void espDeepSleep(bool hardCutOff);
 void sendSensorState();
 void sendSensorStateNotTimed();
 void turnOffWaterPumpAfterSeconds();
-int getQuality();
-void setup_wifi();
-void callback(char* topic, byte* payload, unsigned int length);
 void sendSensorStateAfterSeconds(int delay);
 int readAnalogBatteryLevel();
 void forceDeepSleep();

@@ -1,71 +1,101 @@
 /*
- * SOLAR STATION
- * 
- * Smart solar watering system 
- * DPsoftware (Davide Perini)
- * Components:
- *   - Arduino C++ sketch running on an ESP8266EX D1 Mini from Lolin running at 80MHz
- *   - Raspberry + Home Assistant for Web GUI, automations and MQTT server
- *   - 88x142 5V solar panel
- *   - Sony VCT6 18650 Lithium Battery
- *   - TP4056 protected lithium charger
- *   - MT3608 DC DC step up module to step up battery voltage to 5.5V, ESP chip is happy with it
- *   - MT3608 DC DC step up module to step up battery voltage to 8.66V, water pump is powerful with it
- *   - Relay Shield to safely power the water pump and "detach it from the circuit"
- *   - 100kΩ + 22kΩ + 4.4kΩ resistance for Battery voltage level monitoring circuit
- *   - 3.5/9V water pump (3W @ 9V)
- *   - TTP223 capacitive touch button with A contact soldered (HIGH signal when button is not pressed, 
- *     LOW signal when button is pressed), used to reset the microcontroller
- *   - Google Home Mini for Voice Recognition
- *   - NOTE: GND of the battery MUST not be directly connected to the GND of the circuit.
- * MIT license
- */
+  SolarStation.cpp - Smart solar watering system 
+  
+  Copyright (C) 2020  Davide Perini
+  
+  Permission is hereby granted, free of charge, to any person obtaining a copy of 
+  this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+  copies of the Software, and to permit persons to whom the Software is 
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in 
+  all copies or substantial portions of the Software.
+  
+  You should have received a copy of the MIT License along with this program.  
+  If not, see <https://opensource.org/licenses/MIT/>.
+
+  * Components:
+   - Arduino C++ sketch running on an ESP8266EX D1 Mini from Lolin running at 80MHz
+   - Raspberry + Home Assistant for Web GUI, automations and MQTT server
+   - 88x142 5V solar panel
+   - Sony VCT6 18650 Lithium Battery
+   - TP4056 protected lithium charger
+   - MT3608 DC DC step up module to step up battery voltage to 5.5V, ESP chip is happy with it
+   - MT3608 DC DC step up module to step up battery voltage to 8.66V, water pump is powerful with it
+   - Relay Shield to safely power the water pump and "detach it from the circuit"
+   - 100kΩ + 22kΩ + 4.4kΩ resistance for Battery voltage level monitoring circuit
+   - 3.5/9V water pump (3W @ 9V)
+   - TTP223 capacitive touch button with A contact soldered (HIGH signal when button is not pressed, 
+     LOW signal when button is pressed), used to reset the microcontroller
+   - Google Home Mini for Voice Recognition
+   NOTE: GND of the battery MUST not be directly connected to the GND of the circuit.
+*/
+
 #include <SolarStation.h>
 
 /********************************** START SETUP*****************************************/
 void setup() {
   
-  Serial.begin(serialRate);
+  Serial.begin(SERIAL_RATE);
 
   pinMode(WATER_PUMP_PIN, OUTPUT); // setup water pump pin
   digitalWrite(WATER_PUMP_PIN, LOW); // turn off the pump just in case
   pinMode(LED_BUILTIN, OUTPUT);  // setup built in ESP led
   digitalWrite(LED_BUILTIN, HIGH); // turn off the ESP led
   
-  setup_wifi();
-  client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(callback);
+  // Bootsrap setup() with Wifi and MQTT functions
+  bootstrapManager.bootstrapSetup(manageDisconnections, manageHardwareButton, callback);
 
-  //OTA SETUP
-  ArduinoOTA.setPort(OTAport);
-  // Hostname defaults to esp8266-[ChipID]
-  ArduinoOTA.setHostname(SENSORNAME);
+}
 
-  // No authentication by default
-  ArduinoOTA.setPassword((const char *)OTApassword);
+/********************************** MANAGE WIFI AND MQTT DISCONNECTION *****************************************/
+void manageDisconnections() {
+  
+}
 
-  ArduinoOTA.onStart([]() {
-    Serial.println(F("Starting"));
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println(F("\nEnd"));
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println(F("Auth Failed"));
-    else if (error == OTA_BEGIN_ERROR) Serial.println(F("Begin Failed"));
-    else if (error == OTA_CONNECT_ERROR) Serial.println(F("Connect Failed"));
-    else if (error == OTA_RECEIVE_ERROR) Serial.println(F("Receive Failed"));
-    else if (error == OTA_END_ERROR) Serial.println(F("End Failed"));
-  });
-  ArduinoOTA.begin();
+/********************************** MQTT SUBSCRIPTIONS *****************************************/
+void manageQueueSubscription() {
 
-  Serial.println(F("Ready"));
-  Serial.print(F("IP Address: "));
-  Serial.println(WiFi.localIP());
+  mqttClient.subscribe(SOLAR_STATION_UPLOADMODE_TOPIC);      
+  mqttClient.subscribe(SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC);      
+  mqttClient.subscribe(SOLAR_STATION_MQTT_CONFIG);      
+  mqttClient.subscribe(SOLAR_STATION_MQTT_ACK);
+      
+}
+
+/********************************** MANAGE HARDWARE BUTTON *****************************************/
+void manageHardwareButton() {
+  // no need to manage hardware button, TP223 is used to reboot the ESP and does not need code to do it
+}
+
+/********************************** START CALLBACK *****************************************/
+void callback(char* topic, byte* payload, unsigned int length) {
+
+  char message[length + 1];
+  for (unsigned int i = 0; i < length; i++) {
+    message[i] = (char)payload[i];
+  }
+  message[length] = '\0';
+
+  if(strcmp(topic, SOLAR_STATION_MQTT_CONFIG) == 0) {
+    if (!processMQTTConfig(message)) {
+      return;
+    }
+  } else if(strcmp(topic, SOLAR_STATION_MQTT_ACK) == 0) {
+    if (!processAckTopic(message)) {
+      return;
+    }
+  } else if(strcmp(topic, SOLAR_STATION_UPLOADMODE_TOPIC) == 0) {
+    if (!processUploadModeJson(message)) {
+      return;
+    }
+  } else if(strcmp(topic, SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC) == 0) {
+    if (!processWaterPumpActiveJson(message)) {
+      return;
+    }
+  }
 
 }
 
@@ -136,15 +166,12 @@ void mqttReconnect() {
   // how many attemps to MQTT connection
   int brokermqttcounter = 0;
   // Loop until we're reconnected
-  while (!client.connected()) {   
+  while (!mqttClient.connected()) {   
     // Attempt to connect to MQTT server with QoS = 1 (pubsubclient supports QoS 1 for subscribe only, published msg have QoS 0 this is why I implemented a custom solution)
-    if (client.connect(SENSORNAME, mqtt_username, mqtt_password, 0, 1, 0, 0, 1)) {
+    if (mqttClient.connect(SENSORNAME, mqtt_username, mqtt_password, 0, 1, 0, 0, 1)) {
       Serial.println(F("connected"));
                 
-      client.subscribe(SOLAR_STATION_UPLOADMODE_TOPIC);      
-      client.subscribe(SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC);      
-      client.subscribe(SOLAR_STATION_MQTT_CONFIG);      
-      client.subscribe(SOLAR_STATION_MQTT_ACK);
+
 
       delay(DELAY_2000);
       brokermqttcounter = 0;
@@ -164,35 +191,6 @@ void mqttReconnect() {
       delay(500);
     }
   }
-}
-
-/********************************** START CALLBACK*****************************************/
-void callback(char* topic, byte* payload, unsigned int length) {
-
-  char message[length + 1];
-  for (unsigned int i = 0; i < length; i++) {
-    message[i] = (char)payload[i];
-  }
-  message[length] = '\0';
-
-  if(strcmp(topic, SOLAR_STATION_MQTT_CONFIG) == 0) {
-    if (!processMQTTConfig(message)) {
-      return;
-    }
-  } else if(strcmp(topic, SOLAR_STATION_MQTT_ACK) == 0) {
-    if (!processAckTopic(message)) {
-      return;
-    }
-  } else if(strcmp(topic, SOLAR_STATION_UPLOADMODE_TOPIC) == 0) {
-    if (!processUploadModeJson(message)) {
-      return;
-    }
-  } else if(strcmp(topic, SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC) == 0) {
-    if (!processWaterPumpActiveJson(message)) {
-      return;
-    }
-  }
-
 }
 
 /********************************** START PROCESS JSON *****************************************/
@@ -328,7 +326,7 @@ void sendSensorStateNotTimed() {
     StaticJsonDocument<BUFFER_SIZE> doc;
     JsonObject root = doc.to<JsonObject>();
 
-    root["Whoami"] = SENSORNAME;
+    root["Whoami"] = WIFI_DEVICE_NAME;
     root["IP"] = WiFi.localIP().toString();
     root["MAC"] = WiFi.macAddress();
     root["ver"] = VERSION;
@@ -359,7 +357,7 @@ void sendSensorStateNotTimed() {
     Serial.println("SENDING SENSOR STATE");
     serializeJsonPretty(root, Serial);
 
-    client.publish(SOLAR_STATION_STATE_TOPIC, buffer, false);
+    mqttClient.publish(SOLAR_STATION_STATE_TOPIC, buffer, false);
 
     delay(DELAY_10);
 
@@ -408,7 +406,7 @@ void sendOnOffState(const char *cmd, unsigned long stateMillis) {
   char buffer[measureJson(root) + 1];
   serializeJson(root, buffer, sizeof(buffer));
   serializeJsonPretty(root, Serial);
-  client.publish(SOLAR_STATION_POWER_TOPIC, buffer, false);
+  mqttClient.publish(SOLAR_STATION_POWER_TOPIC, buffer, false);
 
   delay(DELAY_10);
 }
@@ -419,7 +417,7 @@ void sendWaterPumpPowerStateOff() {
     number_of_attemps++;
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE OFF");
-    client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, OFF_CMD, false);
+    mqttClient.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, OFF_CMD, false);
     delay(DELAY_10);
   }
 }
@@ -430,7 +428,7 @@ void sendWaterPumpPowerStateOn() {
     number_of_attemps++;
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE ON"); 
-    client.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, ON_CMD, false);
+    mqttClient.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, ON_CMD, false);
     delay(DELAY_10);
   }
 }
@@ -441,25 +439,9 @@ void sendWaterPumpActiveStateOff() {
     number_of_attemps++;
     Serial.println(); 
     Serial.println("SENDING WATER PUMP ACTIVE STATE OFF"); 
-    client.publish(SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC, OFF_CMD, false);
+    mqttClient.publish(SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC, OFF_CMD, false);
     delay(DELAY_10);
   }
-}
-
-/*
-   Return the quality (Received Signal Strength Indicator) of the WiFi network.
-   Returns a number between 0 and 100 if WiFi is connected.
-   Returns -1 if WiFi is disconnected.
-*/
-int getQuality() {
-  if (WiFi.status() != WL_CONNECTED)
-    return -1;
-  int dBm = WiFi.RSSI();
-  if (dBm <= -100)
-    return 0;
-  if (dBm >= -50)
-    return 100;
-  return 2 * (dBm + 100);
 }
 
 /********************************** WATER PUMP MANAGEMENT (non blocking delay) *****************************************/
@@ -514,20 +496,8 @@ int readAnalogBatteryLevel() {
 /********************************** START MAIN LOOP *****************************************/
 void loop() {  
   
-  // Wifi management
-  if (WiFi.status() != WL_CONNECTED) {
-    delay(1);
-    Serial.print(F("WIFI Disconnected. Attempting reconnection."));
-    setup_wifi();
-    return;
-  }
-
-  ArduinoOTA.handle();
-
-  if (!client.connected()) {
-    mqttReconnect();
-  }
-  client.loop();
+  // Bootsrap loop() with Wifi, MQTT and OTA functions
+  bootstrapManager.bootstrapLoop(manageDisconnections, manageQueueSubscription, manageHardwareButton);
 
   // Send status on startup and wait for MQTT config
   if (!onStateAckReceived) {
@@ -586,9 +556,10 @@ void loop() {
       }
     }
   }
+
   // Force deepSleep after 15 minutes of activity, no matter what's happening, some errors occured probably.
   forceDeepSleep();
 
-  delay(delayTime);
+  delay(DELAY_10);
   
 }
