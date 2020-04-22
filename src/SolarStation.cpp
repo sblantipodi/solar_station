@@ -276,7 +276,8 @@ void sendSensorStateNotTimed() {
     Serial.println("SENDING SENSOR STATE");
     serializeJsonPretty(root, Serial);
 
-    mqttClient.publish(SOLAR_STATION_STATE_TOPIC, buffer, false);
+    // This topic should be retained, we don't want unknown values on battery voltage or wifi signal
+    mqttClient.publish(SOLAR_STATION_STATE_TOPIC, buffer, true);
 
     delay(DELAY_10);
 
