@@ -72,70 +72,50 @@ void manageDisconnections() {
 /********************************** MQTT SUBSCRIPTIONS *****************************************/
 void manageQueueSubscription() {
 
-  mqttClient.subscribe(SOLAR_STATION_UPLOADMODE_TOPIC);      
-  mqttClient.subscribe(SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC);      
-  mqttClient.subscribe(SOLAR_STATION_MQTT_CONFIG);      
-  mqttClient.subscribe(SOLAR_STATION_MQTT_ACK);
+  bootstrapManager.subscribe(SOLAR_STATION_UPLOADMODE_TOPIC);      
+  bootstrapManager.subscribe(SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC);      
+  bootstrapManager.subscribe(SOLAR_STATION_MQTT_CONFIG);      
+  bootstrapManager.subscribe(SOLAR_STATION_MQTT_ACK);
       
 }
 
 /********************************** MANAGE HARDWARE BUTTON *****************************************/
 void manageHardwareButton() {
+
   // no need to manage hardware button, TP223 is used to reboot the ESP and does not need code to do it
+
 }
 
 /********************************** START CALLBACK *****************************************/
 void callback(char* topic, byte* payload, unsigned int length) {
 
-  char message[length + 1];
-  for (unsigned int i = 0; i < length; i++) {
-    message[i] = (char)payload[i];
-  }
-  message[length] = '\0';
+  StaticJsonDocument<BUFFER_SIZE> json = bootstrapManager.parseQueueMsg(topic, payload, length);
 
   if(strcmp(topic, SOLAR_STATION_MQTT_CONFIG) == 0) {
-    if (!processMQTTConfig(message)) {
-      return;
-    }
+    processMQTTConfig(json);
   } else if(strcmp(topic, SOLAR_STATION_MQTT_ACK) == 0) {
-    if (!processAckTopic(message)) {
-      return;
-    }
+    processAckTopic(json);
   } else if(strcmp(topic, SOLAR_STATION_UPLOADMODE_TOPIC) == 0) {
-    if (!processUploadModeJson(message)) {
-      return;
-    }
+    processUploadModeJson(json);
   } else if(strcmp(topic, SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC) == 0) {
-    if (!processWaterPumpActiveJson(message)) {
-      return;
-    }
+    processWaterPumpActiveJson(json);
   }
 
 }
 
 /********************************** START PROCESS JSON *****************************************/
-bool processMQTTConfig(char* message) {
-  StaticJsonDocument<BUFFER_SIZE> doc;
-  DeserializationError error = deserializeJson(doc, message);
+bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
 
-  if (error) {
-    Serial.println(F("parseObject() failed 2"));
-    return false;
-  }
+  timedate = helper.getValue(json["time"]);
 
-  const char* timeConst = doc["time"];
-  timedate = timeConst;  
-
-  const char* uploadModeConst = doc["upload_mode"];
-  String uploadModeStr = uploadModeConst;
-  uploadMode = uploadModeStr == "on";
+  String uploadModeStr = json["upload_mode"];
+  uploadMode = uploadModeStr == on_CMD;
   if (uploadMode) {
     nowMillisSendStatus = millis(); // reset the counter, first ten seconds the blu led will be on
   }
-  
-  const char* waterPumpActiveConst = doc["pump_active"];
-  String waterPumpActiveStr = waterPumpActiveConst;
-  waterPumpActive = waterPumpActiveStr == "on";
+
+  String waterPumpActiveStr = json["pump_active"];
+  waterPumpActive = waterPumpActiveStr == on_CMD;
 
   // reconnection can cause mqttConfig to be reprocessed. don't reinitialize number of attemps
   if (!dataMQTTReceived) {
@@ -146,24 +126,19 @@ bool processMQTTConfig(char* message) {
     }
   }
   
-  const char* pumpSecondsConst = doc["pump_seconds"];
-  String pumpSecondsStr = pumpSecondsConst;
+  String pumpSecondsStr = json["pump_seconds"];
   waterPumpSecondsOn = pumpSecondsStr.toDouble() * 1000;
 
-  const char* espSleepTimeMinutesConst = doc["esp_sleep_time_minutes"];
-  String espSleepTimeMinutesStr = espSleepTimeMinutesConst;
+  String espSleepTimeMinutesStr = json["esp_sleep_time_minutes"];
   
   // if sleepTime is 1 sleep 1 second, if it's 61 sleep forever, sleep N minutes otherwise
-  if ((espSleepTimeMinutesStr.toDouble() >= 1)) {
+  if ((espSleepTimeMinutesStr.toDouble() > 1)) {
     espSleepTime = (espSleepTimeMinutesStr.toDouble() * 60 * 1000000);
   } else if ((espSleepTimeMinutesStr.toDouble() >= 61)) {
     espSleepTime = 0; // 0 means sleep forever
   } else {
     espSleepTime = (1e6);
   }
-
-  Serial.println("MQTT CONFIG RECEIVED");
-  serializeJsonPretty(doc, Serial);
 
   // dataMQTTReceived enables sketch processing, we do our things only after MQTT config has been received
   dataMQTTReceived = true;
@@ -188,11 +163,13 @@ bool processMQTTConfig(char* message) {
   waterPumpCutOff = (readAnalogBatteryLevel() < 890); 
   
   return true;
+
 }
 
 // ACK Automation for custom implementation of QoS1 in pubsubclient that doesn't support QoS1 for publish if not for subscribe
-bool processAckTopic(char* message) {
-    String ackMsg = message;
+bool processAckTopic(StaticJsonDocument<BUFFER_SIZE> json) {
+
+    String ackMsg = json[VALUE];
 
     if (ackMsg == "sendOnState") {
       onStateAckReceived = true;
@@ -214,81 +191,71 @@ bool processAckTopic(char* message) {
     }
     
     return true;
+
 }
 
-bool processUploadModeJson(char* message) {
-    String uploadModeStr = message;
-    uploadMode = uploadModeStr == ON_CMD;
+bool processUploadModeJson(StaticJsonDocument<BUFFER_SIZE> json) {
+
+    uploadMode = helper.isOnOff(json);
     Serial.println();
     Serial.print("UPLOAD_MODE= "); Serial.println(uploadMode);    
     Serial.println();
     return true;
+
 }
 
-bool processWaterPumpActiveJson(char* message) {
-    String waterPumpStr = message;
-    waterPumpActive = waterPumpStr == ON_CMD;
+bool processWaterPumpActiveJson(StaticJsonDocument<BUFFER_SIZE> json) {
+
+    waterPumpActive = helper.isOnOff(json);
     Serial.println();
     Serial.print("WATER_PUMP_ACTIVE= "); Serial.println(waterPumpActive);    
     Serial.println();
     return true;
+
 }
 
 /********************************** SEND STATE *****************************************/
 void sendSensorState() {
+
   if(millis() > sensorStateNowMillis + DELAY_1000){
     sensorStateNowMillis = millis();
     number_of_attemps++;
     sendSensorStateNotTimed();
   }
+
 }
-void sendSensorStateNotTimed() {    
-    StaticJsonDocument<BUFFER_SIZE> doc;
-    JsonObject root = doc.to<JsonObject>();
+void sendSensorStateNotTimed() {  
 
-    root["Whoami"] = WIFI_DEVICE_NAME;
-    root["IP"] = WiFi.localIP().toString();
-    root["MAC"] = WiFi.macAddress();
-    root["ver"] = VERSION;
+  JsonObject root = bootstrapManager.getJsonObject();
 
-    root["time"] = timedate;
+  // read analog battery level 
+  int batteryLevelAnalog = readAnalogBatteryLevel();
 
-    // read analog battery level 
-    int batteryLevelAnalog = readAnalogBatteryLevel();
+  // if the analog value is below 816 (3.3V) execute an hard cutoff
+  if (batteryLevelAnalog <= 816) {
+    hardCutOff = true;
+    root["HARD_CUT_OFF"] = batteryLevelAnalog;
+  }
+  if (waterPumpCutOff) {
+    root["WATER_PUMP_CUT_OFF"] = batteryLevelAnalog;
+  }
+  root["battery"] = batteryLevelAnalog;
+  root["frequency"] = ESP.getCpuFreqMHz();  
+  root["remaining_seconds"] = waterPumpRemainingSeconds;    
+  
+  bootstrapManager.sendState(SOLAR_STATION_STATE_TOPIC, root, VERSION); 
 
-    // if the analog value is below 816 (3.3V) execute an hard cutoff
-    if (batteryLevelAnalog <= 816) {
-      hardCutOff = true;
-      root["HARD_CUT_OFF"] = batteryLevelAnalog;
-    }
-    if (waterPumpCutOff) {
-      root["WATER_PUMP_CUT_OFF"] = batteryLevelAnalog;
-    }
-    root["battery"] = batteryLevelAnalog;
-    root["wifi"] = bootstrapManager.getSignalQuality();
-    root["frequency"] = ESP.getCpuFreqMHz();  
-    root["remaining_seconds"] = waterPumpRemainingSeconds;  
-    
-    
-    char buffer[measureJson(root) + 1];
-    serializeJson(root, buffer, sizeof(buffer));
+  delay(DELAY_10);
 
-    Serial.println();
-    Serial.println("SENDING SENSOR STATE");
-    serializeJsonPretty(root, Serial);
+  // hardCutOff but only if uploadMode is false
+  if (hardCutOff && !uploadMode) {
+    espDeepSleep(true, true);
+  }
 
-    // This topic should be retained, we don't want unknown values on battery voltage or wifi signal
-    mqttClient.publish(SOLAR_STATION_STATE_TOPIC, buffer, true);
-
-    delay(DELAY_10);
-
-    // hardCutOff but only if uploadMode is false
-    if (hardCutOff && !uploadMode) {
-      espDeepSleep(true, true);
-    }
 }
 
 void sendSensorStateAfterSeconds(int delay) {
+
   if(millis() > nowMillisSendStatus + delay){
     nowMillisSendStatus = millis();
     if (!uploadMode) {
@@ -296,26 +263,32 @@ void sendSensorStateAfterSeconds(int delay) {
     }    
     sendSensorStateNotTimed();
   }
+
 }
 
 void sendOnState() {    
+
   if(millis() > onStateNowMillis + DELAY_1000){
     sendOnOffState(ON_CMD, onStateNowMillis);     
   }
+
 }
 
 void sendOffState() {
+
   if(millis() > offStateNowMillis + DELAY_1000){
     sendOnOffState(OFF_CMD, offStateNowMillis);
   }
+  
 }
 
-void sendOnOffState(const char *cmd, unsigned long stateMillis) {
+void sendOnOffState(String cmd, unsigned long stateMillis) {
+  
   number_of_attemps++;
   Serial.println("SENDING STATE"); Serial.println(cmd);
 
-  StaticJsonDocument<BUFFER_SIZE> doc;
-  JsonObject root = doc.to<JsonObject>();
+  JsonObject root = bootstrapManager.getJsonObject();
+
   root["state"] = cmd;
   if (cmd == OFF_CMD) {
     offStateNowMillis = millis();
@@ -324,59 +297,67 @@ void sendOnOffState(const char *cmd, unsigned long stateMillis) {
     onStateNowMillis = millis();
     root["number_of_attemps"] = 0;
   }
-  char buffer[measureJson(root) + 1];
-  serializeJson(root, buffer, sizeof(buffer));
-  serializeJsonPretty(root, Serial);
-  mqttClient.publish(SOLAR_STATION_POWER_TOPIC, buffer, false);
+
+  bootstrapManager.publish(SOLAR_STATION_POWER_TOPIC, root, false);
 
   delay(DELAY_10);
+
 }
 
 void sendWaterPumpPowerStateOff() {
+
   if(millis() > waterPumpPowerStateOffNowMillis + DELAY_1000){
     waterPumpPowerStateOffNowMillis = millis();
     number_of_attemps++;
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE OFF");
-    mqttClient.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, OFF_CMD, false);
+    bootstrapManager.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, helper.string2char(OFF_CMD), false);
     delay(DELAY_10);
   }
+
 }
 
 void sendWaterPumpPowerStateOn() {
+
   if(millis() > waterPumpPowerStateOnNowMillis + DELAY_1000){
     waterPumpPowerStateOnNowMillis = millis();
     number_of_attemps++;
     Serial.println(); 
     Serial.print("SENDING WATER PUMP POWER STATE ON"); 
-    mqttClient.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, ON_CMD, false);
+    bootstrapManager.publish(SOLAR_STATION_WATERPUMP_POWER_TOPIC, helper.string2char(ON_CMD), false);
     delay(DELAY_10);
   }
+
 }
 
 void sendWaterPumpActiveStateOff() {
+
   if(millis() > waterPumpActiveStateOffNowMillis + DELAY_1000){
     waterPumpActiveStateOffNowMillis = millis();
     number_of_attemps++;
     Serial.println(); 
     Serial.println("SENDING WATER PUMP ACTIVE STATE OFF"); 
-    mqttClient.publish(SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC, OFF_CMD, false);
+    bootstrapManager.publish(SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC, helper.string2char(OFF_CMD), false);
     delay(DELAY_10);
   }
+
 }
 
 /********************************** WATER PUMP MANAGEMENT (non blocking delay) *****************************************/
 void turnOffWaterPumpAfterSeconds() {
+
   if(millis() > nowMillisWaterPumpStatus + waterPumpSecondsOn){
     nowMillisWaterPumpStatus = millis();
     waterPumpPower = false;
     digitalWrite(WATER_PUMP_PIN, LOW); // PHISICALLY TURN OFF THE WATER PUMP
   }
+
 }
 
 /********************************** ESP DEEP SLEEP *****************************************/
 // Note: to achieve timed deepSleep you need to connect D0 with RST pin
 void espDeepSleep(bool sendState, bool hardCutOff) {
+
   // if sendState is required, shutdown the microcontroller after the offStateAckReceived only
   if (sendState && !offStateAckReceived) {
     sendOffState();
@@ -388,8 +369,10 @@ void espDeepSleep(bool sendState, bool hardCutOff) {
   if (!sendState) {
     espDeepSleep(hardCutOff); 
   }
+
 }
 void espDeepSleep(bool hardCutOff) { 
+
   dataMQTTReceived = false;
   delay(DELAY_1000);
   // if hardCutOff sleep forever or until capacitive button is pressed
@@ -398,20 +381,25 @@ void espDeepSleep(bool hardCutOff) {
   } else {
     ESP.deepSleep(espSleepTime);
   }
+
 }
 // force deepSleep after 15 minutes
 void forceDeepSleep() {
+
   if((millis() > nowMillisForceDeepSleepStatus + FORCE_DEEP_SLEEP_TIME) || (number_of_attemps >= MQTT_PUBLISH_MAX_RETRY)){
     nowMillisForceDeepSleepStatus = millis();
     digitalWrite(WATER_PUMP_PIN, LOW);
     espDeepSleep(false, false);
   }
+
 }
 
 /********************************** BATTERY LEVEL *****************************************/
 // read analog battery level from A0 pin (voltage divider required on that PIN because ESP can read up to 3.3V and the battery goes up to 4.2V)
 int readAnalogBatteryLevel() {
+
   return analogRead(A0);
+
 }
 
 /********************************** START MAIN LOOP *****************************************/

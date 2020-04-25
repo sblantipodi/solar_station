@@ -23,6 +23,8 @@
 #include <ESP8266WiFi.h>
 #include <Adafruit_SSD1306.h>
 
+#define DEBUG_QUEUE_MSG false
+
 #define AUTHOR "DPsoftware"
 
 // Serial rate for debug
@@ -38,18 +40,22 @@ extern Adafruit_SSD1306 display;
 // SENSORNAME will be used as device network name
 #define WIFI_DEVICE_NAME "SOLAR_STATION"
 // GATEWAY IP
-#define IP_GATEWAY IPAddress(192, 168, 1, 1);
+const IPAddress IP_GATEWAY = IPAddress(192, 168, 1, 1);
+// GATEWAY IP
+const IPAddress IP_DNS = IPAddress(192, 168, 1, 1);
+// MQTT server IP
+const char* const MQTT_SERVER = "192.168.1.3";
 // STATIC IP FOR THE MICROCONTROLLER
-#define IP_MICROCONTROLLER IPAddress(192, 168, 1, 59);
+const IPAddress IP_MICROCONTROLLER = IPAddress(192, 168, 1, 59);
 // Port for the OTA firmware uplaod
 const int OTA_PORT = 8290;
 // Set wifi power in dbm range 0/0.25, set to 0 to reduce PIR false positive due to wifi power, 0 low, 20.5 max.
 const double WIFI_POWER = 20.5;
 // MQTT server port
-const int mqtt_port = 1883;
+const int MQTT_PORT = 1883;
 // Maximum number of reconnection (WiFi/MQTT) attemp before powering off peripherals
 #define MAX_RECONNECT 500
 // Maximum JSON Object Size
-#define MAX_JSON_OBJECT_SIZE 20
+#define MAX_JSON_OBJECT_SIZE 50
 
 #endif
