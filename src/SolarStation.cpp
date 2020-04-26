@@ -409,7 +409,7 @@ void loop() {
   bootstrapManager.bootstrapLoop(manageDisconnections, manageQueueSubscription, manageHardwareButton);
 
   // Send status on startup and wait for MQTT config, this is subscribed with QoS1 so MQTT server will retry until received
-  if (!onStateAckReceived) {
+  if (!onStateAckReceived || !dataMQTTReceived) {
     sendOnState();
   }
  
