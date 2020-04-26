@@ -74,7 +74,7 @@ void manageQueueSubscription() {
 
   bootstrapManager.subscribe(SOLAR_STATION_UPLOADMODE_TOPIC);      
   bootstrapManager.subscribe(SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC);      
-  bootstrapManager.subscribe(SOLAR_STATION_MQTT_CONFIG);      
+  bootstrapManager.subscribe(SOLAR_STATION_MQTT_CONFIG, 1);      
   bootstrapManager.subscribe(SOLAR_STATION_MQTT_ACK);
       
 }
@@ -408,7 +408,7 @@ void loop() {
   // Bootsrap loop() with Wifi, MQTT and OTA functions
   bootstrapManager.bootstrapLoop(manageDisconnections, manageQueueSubscription, manageHardwareButton);
 
-  // Send status on startup and wait for MQTT config
+  // Send status on startup and wait for MQTT config, this is subscribed with QoS1 so MQTT server will retry until received
   if (!onStateAckReceived) {
     sendOnState();
   }
