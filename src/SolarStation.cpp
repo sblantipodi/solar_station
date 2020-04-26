@@ -132,7 +132,7 @@ bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
   String espSleepTimeMinutesStr = json["esp_sleep_time_minutes"];
   
   // if sleepTime is 1 sleep 1 second, if it's 61 sleep forever, sleep N minutes otherwise
-  if ((espSleepTimeMinutesStr.toDouble() > 1)) {
+  if ((espSleepTimeMinutesStr.toDouble() >= 1)) {
     espSleepTime = (espSleepTimeMinutesStr.toDouble() * 60 * 1000000);
   } else if ((espSleepTimeMinutesStr.toDouble() >= 61)) {
     espSleepTime = 0; // 0 means sleep forever
