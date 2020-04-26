@@ -54,6 +54,9 @@ If you like **Solar Station**, give it a star, or fork it and contribute!
 ## IP56 box:
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/5.jpg)
 
+## Water pump:
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/water_pump.jpg)
+
 ## Home Assistant Mobile Client Screenshots
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/ha_screenshot_d.jpg)
 
