@@ -12,6 +12,8 @@ If you like **Solar Station**, give it a star, or fork it and contribute!
 [![GitHub stars](https://img.shields.io/github/stars/sblantipodi/solar_station.svg?style=social&label=Star)](https://github.com/sblantipodi/solar_station/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/sblantipodi/solar_station.svg?style=social&label=Fork)](https://github.com/sblantipodi/solar_station/network)
 
+Project is bootstrapped with [Arduino Bootstrapper](https://github.com/sblantipodi/arduino_bootstrapper)
+
 ## Credits
 - Davide Perini
 
