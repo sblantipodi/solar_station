@@ -34,7 +34,7 @@
 */
 
 #include "Version.h"
-#include "../arduino_bootstrapper/core/BootstrapManager.h"
+#include "BootstrapManager.h"
 
 /****************** BOOTSTRAP MANAGER ******************/
 BootstrapManager bootstrapManager;
