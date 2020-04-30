@@ -97,9 +97,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     processAckTopic(json);
   } else if(strcmp(topic, SOLAR_STATION_UPLOADMODE_TOPIC) == 0) {
     processUploadModeJson(json);
-  } else if(strcmp(topic, SOLAR_STATION_WATERPUMP_ACTIVE_TOPIC) == 0) {
-    processWaterPumpActiveJson(json);
-  }
+  } 
 
 }
 
@@ -196,19 +194,9 @@ bool processAckTopic(StaticJsonDocument<BUFFER_SIZE> json) {
 
 bool processUploadModeJson(StaticJsonDocument<BUFFER_SIZE> json) {
 
-    uploadMode = helper.isOnOff(json);
+    uploadMode = (helper.isOnOff(json) == ON_CMD);
     Serial.println();
     Serial.print("UPLOAD_MODE= "); Serial.println(uploadMode);    
-    Serial.println();
-    return true;
-
-}
-
-bool processWaterPumpActiveJson(StaticJsonDocument<BUFFER_SIZE> json) {
-
-    waterPumpActive = helper.isOnOff(json);
-    Serial.println();
-    Serial.print("WATER_PUMP_ACTIVE= "); Serial.println(waterPumpActive);    
     Serial.println();
     return true;
 

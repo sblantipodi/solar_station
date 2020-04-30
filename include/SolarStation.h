@@ -81,7 +81,7 @@ float temperature = 0;
 float pressure = 0;
 float humidity = 0;
 bool contextInitialized = false;
-bool uploadMode = true; // if true, microcontroller does nothing but expose its OTA programmable interface
+bool uploadMode = false; // if true, microcontroller does nothing but expose its OTA programmable interface
 bool waterPumpActive = false; // value received via MQTT config, if true, turn on the pump
 bool waterPumpPower = false; // value send via MQTT message to the broker, if true, the pump if turned on
 bool dataMQTTReceived = false;  // don't do anything until MQTT server sent its configuration
@@ -111,7 +111,6 @@ void manageHardwareButton();
 // Project specific functions
 bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json);
 bool processUploadModeJson(StaticJsonDocument<BUFFER_SIZE> json);
-bool processWaterPumpActiveJson(StaticJsonDocument<BUFFER_SIZE> json);
 bool processAckTopic(StaticJsonDocument<BUFFER_SIZE> json);
 void sendWaterPumpActiveStateOff();
 void sendWaterPumpPowerStateOff();
