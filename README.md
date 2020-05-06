@@ -2,7 +2,8 @@
 Smart solar watering system  
 _Written for Arduino IDE and PlatformIO._
 
-[![GitHub version](https://img.shields.io/github/v/release/sblantipodi/solar_station.svg)](https://img.shields.io/github/v/release/sblantipodi/solar_station.svg)
+[![GitHub Actions CI](https://github.com/sblantipodi/solar_station/workflows/GitHub%20Actions%20CI/badge.svg)](https://github.com/sblantipodi/solar_station/actions)
+[![GitHub version](https://img.shields.io/github/v/release/sblantipodi/solar_station.svg)](https://github.com/sblantipodi/solar_station/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/sblantipodi/solar_station/graphs/commit-activity)
 [![DPsoftware](https://img.shields.io/static/v1?label=DP&message=Software&color=orange)](https://www.dpsoftware.org)
