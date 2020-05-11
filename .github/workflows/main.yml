@@ -31,7 +31,7 @@ jobs:
     # - name: Setup tmate session
     #   uses: mxschmitt/action-tmate@v2  
     - name: Static code analysis
-      run: platformio check --verbose --severity=high --skip-package           
+      run: platformio check --verbose --severity=high --skip-packages          
     - name: Run PlatformIO
       run: platformio run -e solarstation
     - name: Creating artifact from BIN file
