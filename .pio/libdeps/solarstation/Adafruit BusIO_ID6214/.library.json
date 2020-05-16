@@ -1,7 +1,7 @@
 {
-    "description": "Adafruit GFX graphics core library, this is the 'core' class that all our other graphics libraries derive from.", 
+    "description": "This is a library for abstracting away UART, I2C and SPI interfacing", 
     "repository": {
-        "url": "https://github.com/adafruit/Adafruit-GFX-Library", 
+        "url": "https://github.com/adafruit/Adafruit_BusIO", 
         "type": "git"
     }, 
     "platforms": [
@@ -42,13 +42,15 @@
         }
     ], 
     "keywords": [
-        "display"
+        "input", 
+        "signal", 
+        "output"
     ], 
-    "id": 13, 
-    "name": "Adafruit GFX Library", 
+    "id": 6214, 
+    "name": "Adafruit BusIO", 
     "frameworks": [
         "arduino"
     ], 
-    "version": "1.8.0", 
+    "version": "1.2.4", 
     "homepage": null
 }
