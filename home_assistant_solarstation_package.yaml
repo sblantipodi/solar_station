@@ -62,7 +62,7 @@ input_number:
         icon: mdi:timer
         initial: 10
         min: 0
-        max: 60
+        max: 61
         step: 1           
 
 sensor:
@@ -101,7 +101,11 @@ sensor:
         friendly_name: 'Battery Level zero volt'
         unit_of_measurement: '%'
         value_template: >-
-          {{ ((states("sensor.battery_analog") | int * 100) / 1024) | round(1) }}
+          {%- if (states("sensor.battery_analog") | int) > 1 %}
+            {{ ((states("sensor.battery_analog") | int * 100) / 1024) | round(1) }}
+          {%- else -%}
+            unknown
+          {%- endif -%}
   - platform: template
     sensors:
       solar_station_battery_percentage:
@@ -115,7 +119,11 @@ sensor:
         friendly_name: 'Battery Voltage'
         unit_of_measurement: 'V'
         value_template: >-
-          {{ ( ((states("sensor.battery_analog") | int) * 4.14) / 1024) | round(2) }}      
+          {%- if (states("sensor.battery_analog") | int) > 1 %}
+            {{ ( ((states("sensor.battery_analog") | int) * 4.14) / 1024) | round(2) }}      
+          {%- else -%}
+            unknown
+          {%- endif -%}
   - platform: template
     sensors:
       activate_water_pump_active:
@@ -244,7 +252,7 @@ automation:
         entity_id: sensor.wifi_signal
     condition: 
       condition: template
-      value_template: '{{ states.sensor.wifi_signal.state | int < 60 }}'
+      value_template: '{{ states.sensor.wifi_signal.state | int < 45 }}'
     action:
     - data:
         message: Livello Wifi insufficiente su Solar Station ({{states.sensor.wifi_signal.state}}%)
