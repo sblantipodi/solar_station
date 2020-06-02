@@ -247,7 +247,7 @@ void sendSensorStateAfterSeconds(int delay) {
   if(millis() > nowMillisSendStatus + delay){
     nowMillisSendStatus = millis();
     if (!uploadMode) {
-      waterPumpRemainingSeconds = (waterPumpRemainingSeconds-(delay/1000));
+      waterPumpRemainingSeconds--;
     }    
     sendSensorStateNotTimed();
   }
