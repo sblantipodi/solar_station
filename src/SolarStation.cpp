@@ -69,8 +69,6 @@ void manageDisconnections() {
 
 }
 
-
-
 /********************************** MQTT SUBSCRIPTIONS *****************************************/
 void manageQueueSubscription() {
 
