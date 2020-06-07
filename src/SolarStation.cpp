@@ -155,8 +155,6 @@ bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
   sensorStateNowMillis = millis();
   waterPumpActiveStateOffNowMillis = millis();
 
-  // Remaining seconds
-  waterPumpRemainingSeconds = (waterPumpSecondsOn / 1000);
   // if battery analog level is below 890 (3.6V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
   waterPumpCutOff = (readAnalogBatteryLevel() < 890); 
   
@@ -229,7 +227,6 @@ void sendSensorStateNotTimed() {
   }
   root["battery"] = batteryLevelAnalog;
   root["frequency"] = ESP.getCpuFreqMHz();  
-  root["remaining_seconds"] = waterPumpRemainingSeconds;    
   
   bootstrapManager.sendState(SOLAR_STATION_STATE_TOPIC, root, VERSION); 
 
@@ -246,9 +243,6 @@ void sendSensorStateAfterSeconds(int delay) {
 
   if(millis() > nowMillisSendStatus + delay){
     nowMillisSendStatus = millis();
-    if (!uploadMode) {
-      waterPumpRemainingSeconds--;
-    }    
     sendSensorStateNotTimed();
   }
 
