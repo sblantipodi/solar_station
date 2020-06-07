@@ -1,7 +1,9 @@
 name: "Close stale issues"
-on:
-  schedule:
-    - cron: "20 * * * *"
+
+on: [push, pull_request]
+
+# on:
+#   schedule:
     # - cron: "0 0 * * *"
 
 jobs:
