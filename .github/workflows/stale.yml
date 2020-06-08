@@ -1,9 +1,7 @@
 name: "Close stale issues"
-# on:
-#   schedule:
-#     - cron: "0 0 * * *"
-
-on: [push, pull_request]
+on:
+  schedule:
+    - cron: "0 0 * * *"
 
 jobs:
   stale:
@@ -13,5 +11,5 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           stale-issue-message: 'This issue is stale because it has been open 30 days with no activity. Remove stale label or comment or this will be closed in 5 days'
-          days-before-stale: 5
-          days-before-close: 1
+          days-before-stale: 30
+          days-before-close: 5
