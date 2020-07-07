@@ -259,6 +259,7 @@ void sendOnState() {
 void sendOffState() {
 
   if(millis() > offStateNowMillis + DELAY_1000){
+    Ping.ping(IP_DNS);
     sendOnOffState(OFF_CMD, offStateNowMillis);
   }
   
