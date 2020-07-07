@@ -157,6 +157,10 @@ bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
 
   // if battery analog level is below 890 (3.6V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
   waterPumpCutOff = (readAnalogBatteryLevel() < 890); 
+
+  // Ping gateway to add presence on the routing table, 
+  // command is synchrounous and adds a bit of lag to the loop
+  Ping.ping(IP_DNS);
   
   return true;
 
@@ -259,7 +263,6 @@ void sendOnState() {
 void sendOffState() {
 
   if(millis() > offStateNowMillis + DELAY_1000){
-    Ping.ping(IP_DNS);
     sendOnOffState(OFF_CMD, offStateNowMillis);
   }
   
