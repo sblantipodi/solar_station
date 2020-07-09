@@ -160,7 +160,7 @@ bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
 
   // Ping gateway to add presence on the routing table, 
   // command is synchrounous and adds a bit of lag to the loop
-  Ping.ping(IP_DNS);
+  Ping.ping(IP_DNS, 1);
   
   return true;
 
