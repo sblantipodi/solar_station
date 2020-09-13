@@ -157,8 +157,8 @@ bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
   waterPumpActiveStateOffNowMillis = millis();
 
   // if battery analog level is below 890 (3.6V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
-  waterPumpCutOff = (readAnalogBatteryLevel() < 890); 
-  
+  waterPumpCutOff = (readAnalogBatteryLevel() < 870);
+
   return true;
 
 }

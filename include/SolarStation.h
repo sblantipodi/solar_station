@@ -44,7 +44,7 @@ Helpers helper;
 /**************************** PIN DEFINITIONS **************************************************/
 #define OLED_RESET LED_BUILTIN // Pin used for integrated D1 Mini blue LED
 #define ANALOG_IN_PIN A0  // ESP8266 Analog Pin ADC0 = A0
-#define WATER_PUMP_PIN D1 // D1 Pin, water pump
+#define WATER_PUMP_PIN D5 // D1 Pin, water pump
 #define WATER_LEAK_PIN D6 // Water leak pin
 // NOTE: TP223 capacitive touch button is not registered because I don't manage it from sketch, it is only used to reset the microcontroller (or to wake it up from the deep sleed)
 
