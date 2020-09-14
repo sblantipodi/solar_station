@@ -34,13 +34,13 @@ Project is bootstrapped with my [Arduino Bootstrapper](https://github.com/sblant
   - Google Home Mini for Voice Recognition
   
 ## Schematic  
-![CIRCUITS](https://github.com/sblantipodi/solar_station/blob/master/data/img/fritzing_hardware_project.png)
+![CIRCUITS](https://github.com/sblantipodi/solar_station/blob/master/assets/img/fritzing_hardware_project.png)
 
 ## First working project:
-![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/1.jpg)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/1.jpg)
 
 ## Final working project with two DC to DC step up modules:
-![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/2.jpg)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/2.jpg)
 
 ## Voltage divider: 
 
@@ -49,19 +49,25 @@ Project is bootstrapped with my [Arduino Bootstrapper](https://github.com/sblant
 - R2 = 22kΩ + 4.4kΩ (in series)
 - Voltage Out = 3.3V (maximum voltage that a D1 Mini can read from the analog pin)  
 
-![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/3b.jpg)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/3b.jpg)
 
 ## From the top:
-![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/4.jpg)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/4.jpg)
 
 ## Water pump:
-![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/water_pump.jpg)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/water_pump.jpg)
 
 ## IP56 box:
-![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/5.jpg)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/5.jpg)
+
+## Second iteration of the same project for other plants in a non stacked format
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/solar_station_part2.jpg)  
+
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/solar_station_part2_front.jpg)
+
 
 ## Home Assistant Mobile Client Screenshots
-![IMG](https://github.com/sblantipodi/solar_station/blob/master/data/img/ha_screenshot_d.jpg)
+![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/ha_screenshot_d.jpg)
 
 ## License
 This program is licensed under MIT License
