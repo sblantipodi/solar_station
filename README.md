@@ -36,13 +36,13 @@ Project is bootstrapped with my [Arduino Bootstrapper](https://github.com/sblant
 ## Schematic  
 ![CIRCUITS](https://github.com/sblantipodi/solar_station/blob/master/assets/img/fritzing_hardware_project.png)
 
-## First working project:
+## First working project
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/1.jpg)
 
-## Final working project with two DC to DC step up modules:
+## Final working project with two DC to DC step up modules
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/2.jpg)
 
-## Voltage divider: 
+## Voltage divider:
 
 - Voltage source = 4.2V (lithium battery at max)
 - R1 = 100kΩ 
@@ -51,13 +51,13 @@ Project is bootstrapped with my [Arduino Bootstrapper](https://github.com/sblant
 
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/3b.jpg)
 
-## From the top:
+## From the top
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/4.jpg)
 
-## Water pump:
+## Water pump
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/water_pump.jpg)
 
-## IP56 box:
+## IP56 box
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/5.jpg)
 
 ## Second iteration of the same project for other plants in a non stacked format
