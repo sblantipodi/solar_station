@@ -23,13 +23,13 @@ jobs:
       run: |         
         cp /home/runner/work/solar_station/solar_station/secrets.ini.template /home/runner/work/solar_station/solar_station/secrets.ini        
     # - name: Setup tmate session
-    #   uses: mxschmitt/action-tmate@v2  
+    #   uses: mxschmitt/action-tmate@v3
     - name: Static code analysis
       run: platformio check --verbose --severity=high --skip-packages          
     - name: Run PlatformIO
       run: platformio run -e solarstation
     - name: Creating artifact from BIN file
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: firmware_build_artifact_solarstation.bin
         path: .pio/build/solarstation/firmware.bin
