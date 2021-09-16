@@ -47,6 +47,8 @@ Helpers helper;
 #define WATER_PUMP_PIN D5 // D1 Pin, water pump
 #define WATER_LEAK_PIN D6 // Water leak pin
 // NOTE: TP223 capacitive touch button is not registered because I don't manage it from sketch, it is only used to reset the microcontroller (or to wake it up from the deep sleep)
+#define WATER_PUMP_CUTOFF 816 // 3.3V
+#define ESP_CUTOFF 740 // 3.0V
 
 /************* MQTT TOPICS **************************/
 // subscribe

@@ -38,7 +38,11 @@
 
 /********************************** START SETUP*****************************************/
 void setup() {
-  
+
+  // if fastDisconnectionManagement we need to execute the callback immediately,
+  // example: power off a watering system can't wait MAX_RECONNECT attemps
+  fastDisconnectionManagement = true;
+
   Serial.begin(SERIAL_RATE);
 
   pinMode(WATER_PUMP_PIN, OUTPUT); // setup water pump pin
@@ -53,10 +57,6 @@ void setup() {
 
 /********************************** MANAGE WIFI AND MQTT DISCONNECTION *****************************************/
 void manageDisconnections() {
-
-  // if fastDisconnectionManagement we need to execute the callback immediately, 
-  // example: power off a watering system can't wait MAX_RECONNECT attemps
-  fastDisconnectionManagement = true;
 
   // Shut down water pump on small disconnections
   if (wifiReconnectAttemp > 10 || mqttReconnectAttemp > 10) {
@@ -156,8 +156,8 @@ bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
   sensorStateNowMillis = millis();
   waterPumpActiveStateOffNowMillis = millis();
 
-  // if battery analog level is below 890 (3.6V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
-  waterPumpCutOff = (readAnalogBatteryLevel() < 870);
+  // if battery analog level is below 816 (3.3V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
+  waterPumpCutOff = (readAnalogBatteryLevel() < WATER_PUMP_CUTOFF);
 
   return true;
 
@@ -218,8 +218,8 @@ void sendSensorStateNotTimed() {
   // read analog battery level 
   int batteryLevelAnalog = readAnalogBatteryLevel();
 
-  // if the analog value is below 816 (3.3V) execute an hard cutoff
-  if (batteryLevelAnalog <= 816) {
+  // if the analog value is below 741 (3.0V) execute an hard cutoff
+  if (batteryLevelAnalog <= ESP_CUTOFF) {
     hardCutOff = true;
     root["HARD_CUT_OFF"] = batteryLevelAnalog;
   }
@@ -406,7 +406,7 @@ void loop() {
     } else {
       // Upload mode OFF, turn off blu LED
       digitalWrite(LED_BUILTIN, HIGH);    
-      // if battery analog level is below 890 (3.6V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
+      // if battery analog level is below 816 (3.3V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
       if (waterPumpActive && !waterPumpCutOff) {      
         // Water pump active, if the pump was off, send sensor state and pump state for the first time              
         if (!sensorStateAckReceived) {
