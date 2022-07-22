@@ -221,10 +221,18 @@ void sendSensorStateNotTimed() {
   // if the analog value is below 741 (3.0V) execute an hard cutoff
   if (batteryLevelAnalog <= ESP_CUTOFF) {
     hardCutOff = true;
-    root["HARD_CUT_OFF"] = batteryLevelAnalog;
+    root["HARD_CUT_OFF"] = true;
+  } else {
+    root["HARD_CUT_OFF"] = false;
   }
   if (waterPumpCutOff) {
-    root["WATER_PUMP_CUT_OFF"] = batteryLevelAnalog;
+    root["WATER_PUMP_CUT_OFF"] = true;
+  } else {
+    root["WATER_PUMP_CUT_OFF"] = false;
+  }
+  if (batteryLevelOnboot == -1) {
+    root["battery_level_on_boot"] = batteryLevelAnalog;
+    batteryLevelOnboot = batteryLevelAnalog;
   }
   root["battery"] = batteryLevelAnalog;
   root["frequency"] = ESP.getCpuFreqMHz();  

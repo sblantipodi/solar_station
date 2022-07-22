@@ -94,6 +94,7 @@ int sensorValue = 0;  // analogRead to measure battery level via a voltage divid
 
 bool hardCutOff = false;
 bool waterPumpCutOff = true;
+int batteryLevelOnboot = -1;
 
 const int FORCE_DEEP_SLEEP_TIME = 900000; // force deepSleep after 15 minutes
 
