@@ -44,7 +44,9 @@ jobs:
         run: platformio check --verbose --severity=high --skip-packages   
 
       - name: Run PlatformIO
-        run: platformio run -e solarstation           
+        run: |
+          platformio run -e solarstation;
+          cp .pio/build/solarstation/firmware.bin .pio/build/solarstation/Solar_Station_ESP8266_firmware.bin;
 
       - name: Create Release
         id: create_release
@@ -56,16 +58,6 @@ jobs:
           body: |
             Changes in this Release
             ${{ env.commitmsg }}
+          files: .pio/build/solarstation/Solar_Station_ESP8266_firmware.bin
           draft: false
           prerelease: false    
-
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: .pio/build/solarstation/firmware.bin
-          asset_name: Solar_Station_ESP8266_firmware.bin
-          asset_content_type: application/octet-stream               
