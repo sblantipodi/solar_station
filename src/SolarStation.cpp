@@ -42,16 +42,27 @@ void setup() {
   // if fastDisconnectionManagement we need to execute the callback immediately,
   // example: power off a watering system can't wait MAX_RECONNECT attemps
   fastDisconnectionManagement = true;
-
+#if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+  Serial.setTxTimeoutMs(0);
+#endif
   Serial.begin(SERIAL_RATE);
 
   pinMode(WATER_PUMP_PIN, OUTPUT); // setup water pump pin
   digitalWrite(WATER_PUMP_PIN, LOW); // turn off the pump just in case
-  pinMode(LED_BUILTIN, OUTPUT);  // setup built in ESP led
-  digitalWrite(LED_BUILTIN, HIGH); // turn off the ESP led
-  
+
+#if defined(ESP8266)
+  pinMode(OLED_RESET, OUTPUT);  // setup built in ESP led
+  digitalWrite(OLED_RESET, HIGH); // turn off the ESP led
+#else
+  pinMode(OLED_RESET, OUTPUT); // setup water pump pin
+  digitalWrite(OLED_RESET, LOW); // turn off the pump just in case
+  pinMode(ANALOG_IN_PIN, INPUT); //It is necessary to declare the input pin
+#endif
+
   // Bootsrap setup() with Wifi and MQTT functions
   bootstrapManager.bootstrapSetup(manageDisconnections, manageHardwareButton, callback);
+
+  readAnalogBatteryLevel();
 
 }
 
@@ -389,7 +400,13 @@ void forceDeepSleep() {
 // read analog battery level from A0 pin (voltage divider required on that PIN because ESP can read up to 3.3V and the battery goes up to 4.2V)
 int readAnalogBatteryLevel() {
 
-  return analogRead(A0);
+#if defined(ESP8266)
+  return analogRead(ANALOG_IN_PIN) ;
+#else
+  int anaRead = analogRead(ANALOG_IN_PIN);
+  anaRead++;
+  return anaRead / 4;
+#endif
 
 }
 
@@ -406,14 +423,10 @@ void loop() {
  
   // MQTT config received, job start (MQTT Config sent via HA in QoS1)
   if (dataMQTTReceived && onStateAckReceived) {
-    // Upload mode ON loop with blu LED ON
     if (uploadMode) {
-      digitalWrite(LED_BUILTIN, LOW);    
       digitalWrite(WATER_PUMP_PIN, LOW);
       sendSensorStateAfterSeconds(TENSECONDSPERIOD); // this sendState does not wait for an ack    
     } else {
-      // Upload mode OFF, turn off blu LED
-      digitalWrite(LED_BUILTIN, HIGH);    
       // if battery analog level is below 816 (3.3V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
       if (waterPumpActive && !waterPumpCutOff) {      
         // Water pump active, if the pump was off, send sensor state and pump state for the first time              
