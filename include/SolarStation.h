@@ -35,7 +35,9 @@
 
 #include "Version.h"
 #include "BootstrapManager.h"
-
+#include <driver/adc.h>
+#include <NeoPixelBus.h>
+#include <NeoPixelAnimator.h>
 
 /****************** BOOTSTRAP MANAGER ******************/
 BootstrapManager bootstrapManager;
@@ -54,8 +56,14 @@ Helpers helper;
 #endif
 
 // NOTE: TP223 capacitive touch button is not registered because I don't manage it from sketch, it is only used to reset the microcontroller (or to wake it up from the deep sleep)
+#if CONFIG_IDF_TARGET_ESP32S3
+#define WATER_PUMP_CUTOFF 3700 // 3.7V
+#define ESP_CUTOFF 3500 // 3.5V
+#endif
+#if defined(ESP8266)
 #define WATER_PUMP_CUTOFF 816 // 3.3V
 #define ESP_CUTOFF 740 // 3.0V
+#endif
 
 /************* MQTT TOPICS **************************/
 // subscribe
@@ -68,6 +76,10 @@ const char* SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC = "stat/water_pump/ACTIVE"
 const char* SOLAR_STATION_WATERPUMP_POWER_TOPIC = "stat/water_pump/POWER";
 const char* SOLAR_STATION_POWER_TOPIC = "stat/solarstation/POWER";
 const char* SOLAR_STATION_MQTT_ACK = "stat/solarstation/ACK";
+// Turn off integrated LED
+#if CONFIG_IDF_TARGET_ESP32S3
+NeoPixelBus<NeoRgbFeature, NeoWs2812xMethod> *ledsEsp32 = NULL;
+#endif
 
 /****************** GLOBAL VARS ******************/
 // MQTT publish retry until ack received
@@ -101,6 +113,7 @@ int sensorValue = 0;  // analogRead to measure battery level via a voltage divid
 
 bool hardCutOff = false;
 bool waterPumpCutOff = true;
+bool espCutOff = false;
 int batteryLevelOnboot = -1;
 
 const int FORCE_DEEP_SLEEP_TIME = 900000; // force deepSleep after 15 minutes

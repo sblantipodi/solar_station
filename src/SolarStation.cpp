@@ -54,14 +54,28 @@ void setup() {
   pinMode(OLED_RESET, OUTPUT);  // setup built in ESP led
   digitalWrite(OLED_RESET, HIGH); // turn off the ESP led
 #else
-  pinMode(OLED_RESET, OUTPUT); // setup water pump pin
-  digitalWrite(OLED_RESET, LOW); // turn off the pump just in case
   pinMode(ANALOG_IN_PIN, INPUT); //It is necessary to declare the input pin
 #endif
 
   // Bootsrap setup() with Wifi and MQTT functions
   bootstrapManager.bootstrapSetup(manageDisconnections, manageHardwareButton, callback);
 
+#if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+  // Turn off integrated LED
+  ledsEsp32 = new NeoPixelBus<NeoRgbFeature, NeoWs2812xMethod>(1, OLED_RESET);
+  if (ledsEsp32 == NULL) {
+    Serial.println(F("OUT OF MEMORY"));
+  } else {
+    ledsEsp32->Begin();
+    ledsEsp32->Show();
+  }
+  ledsEsp32->SetPixelColor(0, {0, 0, 0});
+  ledsEsp32->Show();
+  // Use 12 bit width (analog reading up to 4095), with DB_11 attenuation (up to 3.1V) on ADC1_CHANNEL_1 (GPIO 2)
+  // https://docs.espressif.com/projects/esp-idf/en/v4.4/esp32s3/api-reference/peripherals/adc.html
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten(ADC1_CHANNEL_1, ADC_ATTEN_DB_11);
+#endif
   readAnalogBatteryLevel();
 
 }
@@ -167,9 +181,11 @@ bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
   sensorStateNowMillis = millis();
   waterPumpActiveStateOffNowMillis = millis();
 
-  // if battery analog level is below 816 (3.3V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
-  waterPumpCutOff = (readAnalogBatteryLevel() < WATER_PUMP_CUTOFF);
-
+  // if battery analog level is below 3700 (3.7V) the microcontroller can continue to wake up and sleep but it can't turn on the water pump
+  int batteryVoltage = readAnalogBatteryLevel();
+  waterPumpCutOff = (batteryVoltage < WATER_PUMP_CUTOFF);
+  // if battery analog level is below 3500 (3.5V) hard cut off
+  espCutOff = (batteryVoltage < ESP_CUTOFF);
   return true;
 
 }
@@ -229,8 +245,8 @@ void sendSensorStateNotTimed() {
   // read analog battery level 
   int batteryLevelAnalog = readAnalogBatteryLevel();
 
-  // if the analog value is below 741 (3.0V) execute an hard cutoff
-  if (batteryLevelAnalog <= ESP_CUTOFF) {
+  // if the analog value is below 3500 (3.5V) execute an hard cutoff
+  if (espCutOff) {
     hardCutOff = true;
     root["HARD_CUT_OFF"] = true;
   } else {
@@ -377,6 +393,11 @@ void espDeepSleep(bool hardCutOff) {
 
   dataMQTTReceived = false;
   delay(DELAY_1000);
+#if CONFIG_IDF_TARGET_ESP32S3
+  // Turn OFF integrated LED before setting the ESP to sleep
+  ledsEsp32->SetPixelColor(0, {0, 0, 0});
+  ledsEsp32->Show();
+#endif
   // if hardCutOff sleep forever or until capacitive button is pressed
   if (hardCutOff) {
     ESP.deepSleep(0);
@@ -400,13 +421,7 @@ void forceDeepSleep() {
 // read analog battery level from A0 pin (voltage divider required on that PIN because ESP can read up to 3.3V and the battery goes up to 4.2V)
 int readAnalogBatteryLevel() {
 
-#if defined(ESP8266)
-  return analogRead(ANALOG_IN_PIN) ;
-#else
-  int anaRead = analogRead(ANALOG_IN_PIN);
-  anaRead++;
-  return anaRead / 4;
-#endif
+  return analogRead(ANALOG_IN_PIN);
 
 }
 
