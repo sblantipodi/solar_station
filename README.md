@@ -19,7 +19,7 @@ Project is bootstrapped with my [Arduino Bootstrapper](https://github.com/sblant
 - Davide Perini
 
 ## Components:
-  - Arduino C++ sketch running on an ESP8266EX D1 Mini from Lolin running at 80MHz
+  - Arduino C++ sketch running on an ESP8266EX D1 Mini from Lolin running at 80MHz or ESP32-S3
   - Raspberry + Home Assistant for Web GUI, automations and MQTT server
   - 88x142 5V solar panel
   - Sony VCT6 18650 Lithium Battery
@@ -27,7 +27,7 @@ Project is bootstrapped with my [Arduino Bootstrapper](https://github.com/sblant
   - MT3608 DC DC step up module to step up battery voltage @ 5.5V, ESP chip is happy with it
   - MT3608 DC DC step up module to step up battery voltage @ 8.66V, water pump is powerful with it
   - Relay Shield to safely power the water pump and "detach it from the circuit"
-  - (100kΩ + (22kΩ + 4.4kΩ)) voltage divider for Battery voltage level monitoring circuit
+  - (100kΩ + (22kΩ + 4.7kΩ)) voltage divider for Battery voltage level monitoring circuit (see Voltage divider section for ESP32-S3)
   - 3.5V/9V water pump (3W @ 9V)
   - TTP223 capacitive touch button with A contact soldered (HIGH signal when button is not pressed, 
     LOW signal when button is pressed), used to reset the microcontroller
@@ -46,8 +46,11 @@ Project is bootstrapped with my [Arduino Bootstrapper](https://github.com/sblant
 
 - Voltage source = 4.2V (lithium battery at max)
 - R1 = 100kΩ 
-- R2 = 22kΩ + 4.4kΩ (in series)
-- Voltage Out = 3.3V (maximum voltage that a D1 Mini can read from the analog pin)  
+- R2 = 22kΩ + 4.7kΩ (in series)
+- Voltage Out = 3.3V (maximum voltage that a D1 Mini can read from the analog pin)
+
+EDIT: Project has been updated to work with an ESP32-S3. ESP32-S3 ADC pin reads up to 3.1V (with an attenuation of 11DB),
+for this reason I swapped the R2 resistors with a 22kΩ + 10kΩ + 4.7kΩ (in series).
 
 ![IMG](https://github.com/sblantipodi/solar_station/blob/master/assets/img/3b.jpg)
 
