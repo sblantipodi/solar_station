@@ -399,8 +399,8 @@ void espDeepSleep(bool hardCutOff) {
   ledsEsp32->Show();
 #endif
   // if hardCutOff sleep forever or until capacitive button is pressed
-  if (hardCutOff) {
-    ESP.deepSleep(0);
+  if (hardCutOff || espSleepTime == 0) {
+    esp_deep_sleep_start();
   } else {
     ESP.deepSleep(espSleepTime);
   }
