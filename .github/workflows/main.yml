@@ -31,7 +31,7 @@ jobs:
     - name: Run PlatformIO
       run: platformio run -e solarstation
     - name: Creating artifact from BIN file
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: firmware_build_artifact_solarstation.bin
         path: .pio/build/solarstation/firmware.bin
