@@ -1,7 +1,7 @@
 /*
   SolarStation.h - Smart solar watering system 
   
- Copyright © 2020 - 2023  Davide Perini
+ Copyright © 2020 - 2024  Davide Perini
   
   Permission is hereby granted, free of charge, to any person obtaining a copy of 
   this software and associated documentation files (the "Software"), to deal
@@ -132,9 +132,9 @@ void manageDisconnections();
 void manageQueueSubscription();
 void manageHardwareButton();
 // Project specific functions
-bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json);
-bool processUploadModeJson(StaticJsonDocument<BUFFER_SIZE> json);
-bool processAckTopic(StaticJsonDocument<BUFFER_SIZE> json);
+bool processMQTTConfig(JsonDocument json);
+bool processUploadModeJson(JsonDocument json);
+bool processAckTopic(JsonDocument json);
 void sendWaterPumpActiveStateOff();
 void sendWaterPumpPowerStateOff();
 void sendWaterPumpPowerStateOn();

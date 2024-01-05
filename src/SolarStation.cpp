@@ -1,7 +1,7 @@
 /*
   SolarStation.cpp - Smart solar watering system 
   
- Copyright © 2020 - 2023  Davide Perini
+ Copyright © 2020 - 2024  Davide Perini
   
   Permission is hereby granted, free of charge, to any person obtaining a copy of 
   this software and associated documentation files (the "Software"), to deal
@@ -114,7 +114,7 @@ void manageHardwareButton() {
 /********************************** START CALLBACK *****************************************/
 void callback(char* topic, byte* payload, unsigned int length) {
 
-  StaticJsonDocument<BUFFER_SIZE> json = bootstrapManager.parseQueueMsg(topic, payload, length);
+  JsonDocument json = bootstrapManager.parseQueueMsg(topic, payload, length);
 
   if(strcmp(topic, SOLAR_STATION_MQTT_CONFIG) == 0) {
     processMQTTConfig(json);
@@ -127,7 +127,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 /********************************** START PROCESS JSON *****************************************/
-bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
+bool processMQTTConfig(JsonDocument json) {
 
   timedate = helper.getValue(json["time"]);
 
@@ -191,7 +191,7 @@ bool processMQTTConfig(StaticJsonDocument<BUFFER_SIZE> json) {
 }
 
 // ACK Automation for custom implementation of QoS1 in pubsubclient that doesn't support QoS1 for publish if not for subscribe
-bool processAckTopic(StaticJsonDocument<BUFFER_SIZE> json) {
+bool processAckTopic(JsonDocument json) {
 
     String ackMsg = json[VALUE];
 
@@ -218,7 +218,7 @@ bool processAckTopic(StaticJsonDocument<BUFFER_SIZE> json) {
 
 }
 
-bool processUploadModeJson(StaticJsonDocument<BUFFER_SIZE> json) {
+bool processUploadModeJson(JsonDocument json) {
 
     uploadMode = (helper.isOnOff(json) == ON_CMD);
     Serial.println();
