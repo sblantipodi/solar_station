@@ -36,6 +36,7 @@ License along with NeoPixel.  If not, see
 #include "features/Neo3ByteFeature.h"
 #include "features/Neo3Byte777Feature.h"
 #include "features/Neo4ByteFeature.h"
+#include "features/Neo5ByteFeature.h"
 #include "features/DotStarX4ByteFeature.h"
 #include "features/DotStarL4ByteFeature.h"
 #include "features/Neo6ByteFeature.h"
@@ -49,8 +50,10 @@ License along with NeoPixel.  If not, see
 //
 #include "features/NeoRgbFeatures.h"
 #include "features/NeoRgbwFeatures.h"
+#include "features/NeoRgbwwFeatures.h"
 #include "features/NeoRgb48Features.h"
 #include "features/NeoRgbw64Features.h"
+#include "features/NeoRgbww80Features.h"
 
 #include "features/NeoRgbwxxFeatures.h"
 #include "features/NeoRgbcwxFeatures.h"
@@ -73,6 +76,7 @@ typedef NeoGrb48Feature NeoGrbWs2816Feature;
 #include "features/Lpd8806RgbFeatures.h"
 
 #include "features/P9813BgrFeature.h"
+#include "features/Tlc59711RgbFeatures.h"
 
 // 7 Segment Features
 //

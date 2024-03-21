@@ -34,6 +34,7 @@ License along with NeoPixel.  If not, see
 #include "methods/Ws2801GenericMethod.h"
 #include "methods/P9813GenericMethod.h"
 #include "methods/Tlc5947GenericMethod.h"
+#include "methods/Tlc59711GenericMethod.h"
 #include "methods/Sm16716GenericMethod.h"
 #include "methods/Mbi6033GenericMethod.h"
 
@@ -61,6 +62,10 @@ License along with NeoPixel.  If not, see
 #elif defined(ARDUINO_ARCH_NRF52840) // must be before __arm__
 
 #include "methods/NeoNrf52xMethod.h"
+
+#elif defined(ARDUINO_ARCH_RP2040) // must be before __arm__
+
+#include "methods/Rp2040/NeoRp2040x4Method.h"
 
 #elif defined(__arm__) // must be before ARDUINO_ARCH_AVR due to Teensy incorrectly having it set
 
