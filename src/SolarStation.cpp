@@ -89,7 +89,7 @@ void manageDisconnections() {
   }
   // Shut down ESP on MAX_RECONNECT attemp
   if (wifiReconnectAttemp > MAX_RECONNECT || mqttReconnectAttemp > MAX_RECONNECT) {
-    espDeepSleep(false, false);
+    espDeepSleep(false, true);
   }
 
 }
