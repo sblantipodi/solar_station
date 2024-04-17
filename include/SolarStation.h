@@ -35,7 +35,9 @@
 
 #include "Version.h"
 #include "BootstrapManager.h"
+#if CONFIG_IDF_TARGET_ESP32S3
 #include <driver/adc.h>
+#endif
 #include <NeoPixelBus.h>
 #include <NeoPixelAnimator.h>
 
@@ -58,7 +60,7 @@ Helpers helper;
 // NOTE: TP223 capacitive touch button is not registered because I don't manage it from sketch, it is only used to reset the microcontroller (or to wake it up from the deep sleep)
 #if CONFIG_IDF_TARGET_ESP32S3
 #define WATER_PUMP_CUTOFF 3700 // 3.7V
-#define ESP_CUTOFF 3500 // 3.5V
+#define ESP_CUTOFF 2300 // 2.3V
 #endif
 #if defined(ESP8266)
 #define WATER_PUMP_CUTOFF 816 // 3.3V
@@ -150,3 +152,4 @@ void turnOffWaterPumpAfterSeconds();
 void sendSensorStateAfterSeconds(int delay);
 int readAnalogBatteryLevel();
 void forceDeepSleep();
+void turnOffBuiltInLed();

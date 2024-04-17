@@ -62,15 +62,7 @@ void setup() {
 
 #if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
   // Turn off integrated LED
-  ledsEsp32 = new NeoPixelBus<NeoRgbFeature, NeoWs2812xMethod>(1, OLED_RESET);
-  if (ledsEsp32 == NULL) {
-    Serial.println(F("OUT OF MEMORY"));
-  } else {
-    ledsEsp32->Begin();
-    ledsEsp32->Show();
-  }
-  ledsEsp32->SetPixelColor(0, {0, 0, 0});
-  ledsEsp32->Show();
+  turnOffBuiltInLed();
   // Use 12 bit width (analog reading up to 4095), with DB_11 attenuation (up to 3.1V) on ADC1_CHANNEL_1 (GPIO 2)
   // https://docs.espressif.com/projects/esp-idf/en/v4.4/esp32s3/api-reference/peripherals/adc.html
   adc1_config_width(ADC_WIDTH_BIT_12);
@@ -78,6 +70,18 @@ void setup() {
 #endif
   readAnalogBatteryLevel();
 
+}
+
+void turnOffBuiltInLed() {
+    ledsEsp32 = new NeoPixelBus<NeoRgbFeature, NeoWs2812xMethod>(1, OLED_RESET);
+    if (ledsEsp32 == NULL) {
+      Serial.println(F("OUT OF MEMORY"));
+    } else {
+      ledsEsp32->Begin();
+      ledsEsp32->Show();
+    }
+    ledsEsp32->SetPixelColor(0, {0, 0, 0});
+    ledsEsp32->Show();
 }
 
 /********************************** MANAGE WIFI AND MQTT DISCONNECTION *****************************************/
@@ -89,7 +93,7 @@ void manageDisconnections() {
   }
   // Shut down ESP on MAX_RECONNECT attemp
   if (wifiReconnectAttemp > MAX_RECONNECT || mqttReconnectAttemp > MAX_RECONNECT) {
-    espDeepSleep(false, true);
+      espDeepSleep(false, true);
   }
 
 }
@@ -385,22 +389,24 @@ void espDeepSleep(bool sendState, bool hardCutOff) {
   }
   // if sendState is not required, MQTT or Wifi not available for example, shutdown microcontroller
   if (!sendState) {
-    espDeepSleep(hardCutOff); 
+    espDeepSleep(hardCutOff);
   }
 
 }
-void espDeepSleep(bool hardCutOff) { 
-
+void espDeepSleep(bool hardCutOff) {
   dataMQTTReceived = false;
   delay(DELAY_1000);
 #if CONFIG_IDF_TARGET_ESP32S3
   // Turn OFF integrated LED before setting the ESP to sleep
-  ledsEsp32->SetPixelColor(0, {0, 0, 0});
-  ledsEsp32->Show();
+  turnOffBuiltInLed();
 #endif
   // if hardCutOff sleep forever or until capacitive button is pressed
-  if (hardCutOff || espSleepTime == 0) {
-    esp_deep_sleep_start();
+    if (hardCutOff || espSleepTime == 0) {
+#if defined(ESP8266)
+    ESP.deepSleep(0);
+#else
+      esp_deep_sleep_start();
+#endif
   } else {
     ESP.deepSleep(espSleepTime);
   }
