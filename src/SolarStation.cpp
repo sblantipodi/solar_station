@@ -73,12 +73,12 @@ void setup() {
 }
 
 void turnOffBuiltInLed() {
-    ledsEsp32 = new NeoPixelBus<NeoRgbFeature, NeoWs2812xMethod>(1, OLED_RESET);
     if (ledsEsp32 == NULL) {
-      Serial.println(F("OUT OF MEMORY"));
-    } else {
-      ledsEsp32->Begin();
-      ledsEsp32->Show();
+        ledsEsp32 = new NeoPixelBus<NeoRgbFeature, NeoWs2812xMethod>(1, OLED_RESET);
+        if (ledsEsp32 == nullptr) {
+            Serial.println(F("OUT OF MEMORY"));
+        }
+        ledsEsp32->Begin();
     }
     ledsEsp32->SetPixelColor(0, {0, 0, 0});
     ledsEsp32->Show();
@@ -415,10 +415,10 @@ void espDeepSleep(bool hardCutOff) {
 // force deepSleep after 15 minutes
 void forceDeepSleep() {
 
-  if((millis() > nowMillisForceDeepSleepStatus + FORCE_DEEP_SLEEP_TIME) || (number_of_attemps >= MQTT_PUBLISH_MAX_RETRY)){
+  if(millis() > nowMillisForceDeepSleepStatus + FORCE_DEEP_SLEEP_TIME){
     nowMillisForceDeepSleepStatus = millis();
     digitalWrite(WATER_PUMP_PIN, LOW);
-    espDeepSleep(false, false);
+    espDeepSleep(false, true);
   }
 
 }

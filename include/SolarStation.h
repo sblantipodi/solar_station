@@ -85,7 +85,6 @@ NeoPixelBus<NeoRgbFeature, NeoWs2812xMethod> *ledsEsp32 = NULL;
 
 /****************** GLOBAL VARS ******************/
 // MQTT publish retry until ack received
-const int MQTT_PUBLISH_MAX_RETRY = 240; // max retry for MQTT publish
 int number_of_attemps = 0;
 bool onStateAckReceived = false;
 unsigned long onStateNowMillis = 0; 
@@ -118,7 +117,7 @@ bool waterPumpCutOff = true;
 bool espCutOff = false;
 int batteryLevelOnboot = -1;
 
-const int FORCE_DEEP_SLEEP_TIME = 900000; // force deepSleep after 15 minutes
+const int FORCE_DEEP_SLEEP_TIME = 3600000; // force deepSleep after 1 hour
 
 // variable used for faster delay instead of arduino delay(), this custom delay prevent a lot of problem and memory leak
 const int TENSECONDSPERIOD = 10000;
