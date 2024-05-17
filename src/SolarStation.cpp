@@ -66,7 +66,7 @@ void setup() {
   // Use 12 bit width (analog reading up to 4095), with DB_11 attenuation (up to 3.1V) on ADC1_CHANNEL_1 (GPIO 2)
   // https://docs.espressif.com/projects/esp-idf/en/v4.4/esp32s3/api-reference/peripherals/adc.html
   adc1_config_width(ADC_WIDTH_BIT_12);
-  adc1_config_channel_atten(ADC1_CHANNEL_1, ADC_ATTEN_DB_11);
+  adc1_config_channel_atten(ADC1_CHANNEL_1, ADC_ATTEN_DB_12);
 #endif
   readAnalogBatteryLevel();
 
