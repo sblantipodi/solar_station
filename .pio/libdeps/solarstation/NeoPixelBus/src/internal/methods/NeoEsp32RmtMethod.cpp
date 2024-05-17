@@ -28,12 +28,12 @@ License along with NeoPixel.  If not, see
 -------------------------------------------------------------------------*/
 
 #include <Arduino.h>
+
+#if defined(ARDUINO_ARCH_ESP32) && !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2)
+
 #include "../NeoSettings.h"
 #include "../NeoBusChannel.h"
 #include "NeoEsp32RmtMethod.h"
-
-#ifdef ARDUINO_ARCH_ESP32
-
 
 // translate NeoPixelBuffer into RMT buffer
 // this is done on the fly so we don't require a send buffer in raw RMT format

@@ -14,14 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if defined(ARDUINO_ARCH_ESP32) 
+#if defined(ARDUINO_ARCH_ESP32)
 
 #include "sdkconfig.h" // this sets useful config symbols, like CONFIG_IDF_TARGET_ESP32C3
 
-// ESP32 C3 & S3 I2S is not supported yet due to significant changes to interface
-#if defined(ARDUINO_ARCH_ESP32) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3)
-
-
+// ESP32 C3, S3, C6, and H2 I2S is not supported yet due to significant changes to interface
+#if !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2)
 
 #include <string.h>
 #include <stdio.h>
@@ -45,17 +43,25 @@
 #include "soc/io_mux_reg.h"
 #include "soc/rtc_cntl_reg.h"
 #include "soc/i2s_struct.h"
+
 #if defined(CONFIG_IDF_TARGET_ESP32)
 /* included here for ESP-IDF v4.x compatibility */
 #include "soc/dport_reg.h"
 #endif
-#include "soc/sens_reg.h"
+
 #include "driver/gpio.h"
 #include "driver/i2s.h"
+
+#if ESP_IDF_VERSION_MAJOR>=5
+#include "rom/gpio.h"
+#include "esp_private/periph_ctrl.h"
+#endif
 
 #if !defined(CONFIG_IDF_TARGET_ESP32S3)
 #include "driver/dac.h"
 #endif
+
+
 
 #include "Esp32_i2s.h"
 #include "esp32-hal.h"
@@ -65,7 +71,7 @@ esp_err_t i2sSetSampleRate(uint8_t bus_num, uint32_t sample_rate, bool parallel_
 
 #define MATRIX_DETACH_OUT_SIG 0x100
 
-#if ESP_IDF_VERSION_MAJOR<=4
+#if ESP_IDF_VERSION_MAJOR<=5
 #define I2S_BASE_CLK (160000000L)
 #endif
 
@@ -79,6 +85,16 @@ esp_err_t i2sSetSampleRate(uint8_t bus_num, uint32_t sample_rate, bool parallel_
 #define I2S_DMA_SILENCE_SIZE     4 // must be in 4 byte increments
 #define I2S_DMA_SILENCE_BLOCK_COUNT_FRONT  2 // two front
 #define I2S_DMA_SILENCE_BLOCK_COUNT_BACK  1 // one back, required for non parallel
+
+// compatibility shim between versions of the IDF
+// note that I2S_NUM_MAX is an enum element, so we check for
+// existence of the new SOC_I2S_NUM
+//
+#if defined(SOC_I2S_NUM)
+#define NEO_I2S_COUNT  (SOC_I2S_NUM)
+#else
+#define NEO_I2S_COUNT  (I2S_NUM_MAX)
+#endif
 
 typedef struct 
 {
@@ -101,14 +117,14 @@ typedef struct
 #define I2s_Is_Sending 2
 
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3)
-// (I2S_NUM_MAX == 2)
-static i2s_bus_t I2S[I2S_NUM_MAX] = 
+// (NEO_I2S_COUNT == 2)
+static i2s_bus_t I2S[NEO_I2S_COUNT] = 
 {
     {&I2S0, -1, -1, -1, -1, NULL, NULL, I2S_DMA_BLOCK_COUNT_DEFAULT, I2s_Is_Idle},
     {&I2S1, -1, -1, -1, -1, NULL, NULL, I2S_DMA_BLOCK_COUNT_DEFAULT, I2s_Is_Idle}
 };
 #else
-static i2s_bus_t I2S[I2S_NUM_MAX] = 
+static i2s_bus_t I2S[NEO_I2S_COUNT] = 
 {
     {&I2S0, -1, -1, -1, -1, NULL, NULL, I2S_DMA_BLOCK_COUNT_DEFAULT, I2s_Is_Idle}
 };
@@ -130,7 +146,7 @@ inline void dmaItemInit(lldesc_t* item, uint8_t* posData, size_t sizeData, lldes
 
 bool i2sInitDmaItems(uint8_t bus_num, uint8_t* data, size_t dataSize, bool parallel_mode, size_t bytes_per_sample)
 {
-    if (bus_num >= I2S_NUM_MAX) 
+    if (bus_num >= NEO_I2S_COUNT) 
     {
         return false;
     }
@@ -201,7 +217,7 @@ bool i2sInitDmaItems(uint8_t bus_num, uint8_t* data, size_t dataSize, bool paral
 
 bool i2sDeinitDmaItems(uint8_t bus_num) 
 {
-    if (bus_num >= I2S_NUM_MAX) 
+    if (bus_num >= NEO_I2S_COUNT) 
     {
         return false;
     }
@@ -219,7 +235,7 @@ esp_err_t i2sSetClock(uint8_t bus_num,
         uint8_t bck,     
         uint8_t bits)    
 {
-    if (bus_num >= I2S_NUM_MAX || div_a > 63 || div_b > 63 || bck > 63) 
+    if (bus_num >= NEO_I2S_COUNT || div_a > 63 || div_b > 63 || bck > 63) 
     {
         return ESP_FAIL;
     }
@@ -268,7 +284,7 @@ void i2sSetPins(uint8_t bus_num,
         int8_t busSampleSize, 
         bool invert)
 {
-    if (bus_num >= I2S_NUM_MAX) 
+    if (bus_num >= NEO_I2S_COUNT) 
     {
         return;
     }
@@ -356,7 +372,7 @@ void i2sSetClkWsPins(uint8_t bus_num,
     bool invertWs)
 {
 
-    if (bus_num >= I2S_NUM_MAX)
+    if (bus_num >= NEO_I2S_COUNT)
     {
         return;
     }
@@ -387,7 +403,7 @@ void i2sSetClkWsPins(uint8_t bus_num,
 
 bool i2sWriteDone(uint8_t bus_num) 
 {
-    if (bus_num >= I2S_NUM_MAX) 
+    if (bus_num >= NEO_I2S_COUNT) 
     {
         return false;
     }
@@ -405,7 +421,7 @@ void i2sInit(uint8_t bus_num,
         uint8_t* data, 
         size_t dataSize)
 {
-    if (bus_num >= I2S_NUM_MAX) 
+    if (bus_num >= NEO_I2S_COUNT) 
     {
         return;
     }
@@ -420,7 +436,7 @@ void i2sInit(uint8_t bus_num,
     }
 
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3)
-// (I2S_NUM_MAX == 2)
+// (NEO_I2S_COUNT == 2)
     if (bus_num) 
     {
         periph_module_enable(PERIPH_I2S1_MODULE);
@@ -545,7 +561,7 @@ void i2sInit(uint8_t bus_num,
     int i2sIntSource;
 
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3)
-//    (I2S_NUM_MAX == 2)
+//    (NEO_I2S_COUNT == 2)
     if (bus_num == 1) 
     {
         i2sIntSource = ETS_I2S1_INTR_SOURCE;
@@ -707,7 +723,7 @@ esp_err_t i2sSetSampleRate(uint8_t bus_num,
         bool parallel_mode, 
         size_t bytes_per_sample)
 {
-    if (bus_num >= I2S_NUM_MAX) 
+    if (bus_num >= NEO_I2S_COUNT) 
     {
         return ESP_FAIL;
     }
@@ -784,7 +800,7 @@ void IRAM_ATTR i2sDmaISR(void* arg)
 
 bool i2sWrite(uint8_t bus_num) 
 {
-    if (bus_num >= I2S_NUM_MAX) 
+    if (bus_num >= NEO_I2S_COUNT) 
     {
         return false;
     }
@@ -913,7 +929,7 @@ void DumpI2s_fifo_conf(const char* label, i2s_dev_t* bus)
 
 bool i2sDump(uint8_t bus_num)
 {
-    if (bus_num >= I2S_NUM_MAX)
+    if (bus_num >= NEO_I2S_COUNT)
     {
         return false;
     }
@@ -1009,7 +1025,7 @@ bool i2sGetClks(uint8_t bus_num,
         uint8_t* clkm_div_b, 
         uint8_t* clkm_div_a)
 {
-    if (bus_num >= I2S_NUM_MAX)
+    if (bus_num >= NEO_I2S_COUNT)
     {
         return false;
     }
@@ -1031,6 +1047,6 @@ bool i2sGetClks(uint8_t bus_num,
 }
 #endif
 
-#endif // !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3)
-#endif // defined(ARDUINO_ARCH_ESP32) 
+#endif //  !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2)
 
+#endif // defined(ARDUINO_ARCH_ESP32)
