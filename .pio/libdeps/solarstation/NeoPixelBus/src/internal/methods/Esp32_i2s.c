@@ -18,18 +18,18 @@
 
 #include "sdkconfig.h" // this sets useful config symbols, like CONFIG_IDF_TARGET_ESP32C3
 
-// ESP32 C3, S3, C6, and H2 I2S is not supported yet due to significant changes to interface
-#if !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2)
-
 #include <string.h>
 #include <stdio.h>
 #include "stdlib.h"
+
+// ESP32 C3, S3, C6, and H2 I2S is not supported yet due to significant changes to interface
+#if !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2)
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
-
+#include "FractionClk.h"
 
 #if ESP_IDF_VERSION_MAJOR>=4
 #include "esp_intr_alloc.h"
@@ -67,7 +67,11 @@
 #include "esp32-hal.h"
 
 esp_err_t i2sSetClock(uint8_t bus_num, uint8_t div_num, uint8_t div_b, uint8_t div_a, uint8_t bck, uint8_t bits_per_sample);
-esp_err_t i2sSetSampleRate(uint8_t bus_num, uint32_t sample_rate, bool parallel_mode, size_t bytes_per_sample);
+esp_err_t i2sSetSampleRate(uint8_t bus_num,
+    uint16_t dmaBitPerDataBit,
+    uint16_t nsBitSendTime,
+    bool parallel_mode,
+    size_t bytesPerSample);
 
 #define MATRIX_DETACH_OUT_SIG 0x100
 
@@ -144,14 +148,22 @@ inline void dmaItemInit(lldesc_t* item, uint8_t* posData, size_t sizeData, lldes
     item->qe.stqe_next = itemNext;
 }
 
-bool i2sInitDmaItems(uint8_t bus_num, uint8_t* data, size_t dataSize, bool parallel_mode, size_t bytes_per_sample)
+bool i2sInitDmaItems(uint8_t bus_num, 
+    uint8_t* data, 
+    size_t dataSize, 
+    bool parallel_mode, 
+    size_t bytesPerSample)
 {
     if (bus_num >= NEO_I2S_COUNT) 
     {
         return false;
     }
 
-    size_t silenceSize = parallel_mode ? I2S_DMA_SILENCE_SIZE * 8 * bytes_per_sample : I2S_DMA_SILENCE_SIZE;
+    // silenceSize is minimum data size to loop i2s for reset
+    // it is not the actual reset time, but parallel mode needs
+    // a bit more time since the data is x8/x16
+    size_t silenceSize = parallel_mode ? 
+        I2S_DMA_SILENCE_SIZE * 8 * bytesPerSample : I2S_DMA_SILENCE_SIZE;
     size_t dmaCount = I2S[bus_num].dma_count;
 
     if (I2S[bus_num].dma_items == NULL) 
@@ -240,13 +252,14 @@ esp_err_t i2sSetClock(uint8_t bus_num,
         return ESP_FAIL;
     }
 
-    //log_i("i2sSetClock bus %u, clkm_div_num %u, clk_div_a %u, clk_div_b %u, bck_div_num %u, bits_mod %u",
-    //    bus_num,
-    //    div_num,
-    //    div_a,
-    //    div_b,
-    //    bck,
-    //    bits);
+    log_i("i2sSetClock bus %u,\n clkm_div_num %u,\n clk_div_a %u,\n clk_div_b %u,\n bck_div_num %u,\n bits_mod %u,\n i2sClkBase %u",
+        bus_num,
+        div_num,
+        div_a,
+        div_b,
+        bck,
+        bits,
+        I2S_BASE_CLK);
 
     i2s_dev_t* i2s = I2S[bus_num].bus;
 
@@ -270,9 +283,9 @@ esp_err_t i2sSetClock(uint8_t bus_num,
     typeof(i2s->sample_rate_conf) sample_rate_conf;
     sample_rate_conf.val = 0;
     sample_rate_conf.tx_bck_div_num = bck;
-    sample_rate_conf.rx_bck_div_num = bck;
+//    sample_rate_conf.rx_bck_div_num = 4;
     sample_rate_conf.tx_bits_mod = bits;
-    sample_rate_conf.rx_bits_mod = bits;
+//    sample_rate_conf.rx_bits_mod = bits;
     i2s->sample_rate_conf.val = sample_rate_conf.val;
 
     return ESP_OK;
@@ -298,63 +311,39 @@ void i2sSetPins(uint8_t bus_num,
 #if defined(CONFIG_IDF_TARGET_ESP32S2)
 
         // S2 only has one bus
-        // 
+        //  single output I2S0O_DATA_OUT23_IDX
         //  in parallel mode
         //  8bit mode   : I2S0O_DATA_OUT16_IDX ~I2S0O_DATA_OUT23_IDX
         //  16bit mode  : I2S0O_DATA_OUT8_IDX ~I2S0O_DATA_OUT23_IDX
         //  24bit mode  : I2S0O_DATA_OUT0_IDX ~I2S0O_DATA_OUT23_IDX
-        if (parallel == -1)
+        i2sSignal = I2S0O_DATA_OUT23_IDX;
+        if (parallel != -1)
         {
-            i2sSignal = I2S0O_DATA_OUT23_IDX;
-        }
-        else if (busSampleSize == 1)
-        {
-            i2sSignal = I2S0O_DATA_OUT16_IDX + parallel;
-        }
-        else if (busSampleSize == 2)
-        {
-            i2sSignal = I2S0O_DATA_OUT8_IDX + parallel;
-        }
-        else
-        {
-            i2sSignal = I2S0O_DATA_OUT0_IDX + parallel;
+            i2sSignal -= ((busSampleSize * 8) - 1);
+            i2sSignal += parallel;
         }
 
 #else
-        if (bus_num == 0)
+        i2sSignal = I2S0O_DATA_OUT0_IDX;
+
+        if (bus_num == 1)
         {
-            //  in parallel mode
-            //  0-7 bits   : I2S0O_DATA_OUT16_IDX ~I2S0O_DATA_OUT23_IDX
-            //  8-15 bits  : I2S0O_DATA_OUT8_IDX ~I2S0O_DATA_OUT23_IDX
-            //  16-23 bits : I2S0O_DATA_OUT0_IDX ~I2S0O_DATA_OUT23_IDX
-            if (parallel == -1)
-            {
-                i2sSignal = I2S0O_DATA_OUT23_IDX;
-            }
-            else if (parallel < 8)
-            {
-                i2sSignal = I2S0O_DATA_OUT16_IDX + parallel;
-            }
-            else if (parallel < 16)
-            {
-                i2sSignal = I2S0O_DATA_OUT8_IDX + parallel - 8;
-            }
-            else
-            {
-                i2sSignal = I2S0O_DATA_OUT0_IDX + parallel - 16;
-            }
+            i2sSignal = I2S1O_DATA_OUT0_IDX;
+        }
+
+        if (parallel == -1)
+        {
+            i2sSignal += 23; // yup, single channel is on 23
         }
         else
         {
-            if (parallel == -1)
+            if (busSampleSize == 2)
             {
-                i2sSignal = I2S1O_DATA_OUT23_IDX;
+                i2sSignal += 8;  // yup, 16 bits starts at 8
             }
-            else
-            {
-                i2sSignal = I2S1O_DATA_OUT0_IDX + parallel;
-            }
+            i2sSignal += parallel; // add the parallel channel index
         }
+
 #endif
         //log_i("i2sSetPins bus %u, i2sSignal %u, pin %u, mux %u",
         //    bus_num,
@@ -365,6 +354,7 @@ void i2sSetPins(uint8_t bus_num,
     } 
 }
 
+/* not used, but left around for reference
 void i2sSetClkWsPins(uint8_t bus_num,
     int8_t outClk,
     bool invertClk,
@@ -400,6 +390,7 @@ void i2sSetClkWsPins(uint8_t bus_num,
         gpio_matrix_out(outWs, i2sSignalWs, invertWs, false);
     }
 }
+*/
 
 bool i2sWriteDone(uint8_t bus_num) 
 {
@@ -413,8 +404,9 @@ bool i2sWriteDone(uint8_t bus_num)
 
 void i2sInit(uint8_t bus_num, 
         bool parallel_mode,
-        size_t bytes_per_sample, 
-        uint32_t sample_rate, 
+        size_t bytesPerSample, 
+        uint16_t dmaBitPerDataBit,
+        uint16_t nsBitSendTime,
         i2s_tx_chan_mod_t chan_mod, 
         i2s_tx_fifo_mod_t fifo_mod, 
         size_t dma_count, 
@@ -430,7 +422,7 @@ void i2sInit(uint8_t bus_num,
             I2S_DMA_SILENCE_BLOCK_COUNT_FRONT +
             I2S_DMA_SILENCE_BLOCK_COUNT_BACK;
 
-    if (!i2sInitDmaItems(bus_num, data, dataSize, parallel_mode, bytes_per_sample))
+    if (!i2sInitDmaItems(bus_num, data, dataSize, parallel_mode, bytesPerSample))
     {
         return;
     }
@@ -479,7 +471,12 @@ void i2sInit(uint8_t bus_num,
         typeof(i2s->conf2) conf2;
         conf2.val = 0;
         conf2.lcd_en = parallel_mode;
-        conf2.lcd_tx_wrx2_en = 0; // parallel_mode; // ((parallel_mode) && (bytes_per_sample == 2));
+        if ((parallel_mode) && (bytesPerSample == 1))
+        {
+            conf2.lcd_tx_wrx2_en = 1;
+            conf2.lcd_tx_sdx2_en = 0;
+        }
+     
         i2s->conf2.val = conf2.val;
     }
 
@@ -501,11 +498,11 @@ void i2sInit(uint8_t bus_num,
         typeof(i2s->fifo_conf) fifo_conf;
 
         fifo_conf.val = 0;
-        fifo_conf.rx_fifo_mod_force_en = 0;
+//        fifo_conf.rx_fifo_mod_force_en = 1; //?
         fifo_conf.tx_fifo_mod_force_en = 1;
         fifo_conf.tx_fifo_mod = fifo_mod; //  0-right&left channel;1-one channel
-        fifo_conf.rx_fifo_mod = fifo_mod; //  0-right&left channel;1-one channel
-        fifo_conf.rx_data_num = 32; //Thresholds.
+ //       fifo_conf.rx_fifo_mod = fifo_mod; //  0-right&left channel;1-one channel
+ //       fifo_conf.rx_data_num = 32; //Thresholds.
         fifo_conf.tx_data_num = 32;
 
         i2s->fifo_conf.val = fifo_conf.val;
@@ -515,8 +512,8 @@ void i2sInit(uint8_t bus_num,
         typeof(i2s->conf1) conf1;
         conf1.val = 0;
 
-        conf1.tx_pcm_conf = 1;
-        conf1.rx_pcm_bypass = 1;
+//        conf1.tx_pcm_conf = 1;
+//        conf1.rx_pcm_bypass = 1;
 
         conf1.tx_stop_en = 0;
         conf1.tx_pcm_bypass = 1;
@@ -527,7 +524,7 @@ void i2sInit(uint8_t bus_num,
         typeof(i2s->conf_chan) conf_chan;
         conf_chan.val = 0;
         conf_chan.tx_chan_mod = chan_mod; //  0-two channel;1-right;2-left;3-righ;4-left
-        conf_chan.rx_chan_mod = chan_mod; //  0-two channel;1-right;2-left;3-righ;4-left
+//        conf_chan.rx_chan_mod = chan_mod; //  0-two channel;1-right;2-left;3-righ;4-left
         i2s->conf_chan.val = conf_chan.val;
     }
 
@@ -535,19 +532,28 @@ void i2sInit(uint8_t bus_num,
         typeof(i2s->conf) conf;
         conf.val = 0;
         conf.tx_msb_shift = !parallel_mode; // 0:DAC/PCM, 1:I2S
-        conf.tx_right_first = 0; // parallel_mode?;
+        conf.tx_right_first = 1; // parallel_mode? but no?
+        conf.tx_short_sync = 0;
+ //       conf.tx_msb_right = 1;
+#if defined(CONFIG_IDF_TARGET_ESP32S2)
+        conf.tx_dma_equal = parallel_mode;
+#endif
         i2s->conf.val = conf.val;
     }
 
     i2s->timing.val = 0;
 
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3)
-    i2s->pdm_conf.rx_pdm_en = 0;
+//    i2s->pdm_conf.rx_pdm_en = 0;
     i2s->pdm_conf.tx_pdm_en = 0;
 #endif
    
     
-    i2sSetSampleRate(bus_num, sample_rate, parallel_mode, bytes_per_sample);
+    i2sSetSampleRate(bus_num, 
+            dmaBitPerDataBit,
+            nsBitSendTime, 
+            parallel_mode, 
+            bytesPerSample);
 
     /* */
     //Reset FIFO/DMA -> needed? Doesn't dma_reset/fifo_reset do this?
@@ -601,146 +607,35 @@ void i2sDeinit(uint8_t bus_num)
     i2sDeinitDmaItems(bus_num);
 }
 
-void i2sUnitDecimalToFractionClks(uint8_t* resultN,
-    uint8_t* resultD,
-    double unitDecimal,
-    double accuracy)
-{
-    if (unitDecimal <= accuracy)
-    {
-        // no fractional 
-        *resultN = 0;
-        *resultD = 1;
-        return;
-    }
-    else if (unitDecimal <= (1.0 / 63.0))
-    {
-        // lowest fractional 
-        *resultN = 0;
-        *resultD = 2;
-        return;
-    }
-    else if (unitDecimal >= (62.0 / 63.0))
-    {
-        // highest fractional
-        *resultN = 2;
-        *resultD = 2;
-        return;
-    }
-
-//    printf("\nSearching for %f\n", unitDecimal);
-
-    // The lower fraction is 0 / 1
-    uint16_t lowerN = 0;
-    uint16_t lowerD = 1;
-    double lowerDelta = unitDecimal;
-
-    // The upper fraction is 1 / 1
-    uint16_t upperN = 1;
-    uint16_t upperD = 1;
-    double upperDelta = 1.0 - unitDecimal;
-
-    uint16_t closestN = 0;
-    uint16_t closestD = 1;
-    double closestDelta = lowerDelta;
-
-    for (;;)
-    {
-        // The middle fraction is 
-        // (lowerN + upperN) / (lowerD + upperD)
-        uint16_t middleN = lowerN + upperN;
-        uint16_t middleD = lowerD + upperD;
-        double middleUnit = (double)middleN / middleD;
-
-        if (middleD > 63)
-        {
-            // exceeded our clock bits so break out
-            // and use closest we found so far
-            break;
-        }
-
-        if (middleD * (unitDecimal + accuracy) < middleN)
-        {
-            // middle is our new upper
-            upperN = middleN;
-            upperD = middleD;
-            upperDelta = middleUnit - unitDecimal;
-        }
-        else if (middleN < (unitDecimal - accuracy) * middleD)
-        {
-            // middle is our new lower
-            lowerN = middleN;
-            lowerD = middleD;
-            lowerDelta = unitDecimal - middleUnit;
-        }
-        else
-        {
-            // middle is our best fraction
-            *resultN = middleN;
-            *resultD = middleD;
-
-//            printf(" Match %d/%d = %f (%f)\n", middleN, middleD, middleUnit, unitDecimal - middleUnit);
-            return;
-        }
-
-        // track the closest fraction so far (ONLY THE UPPER, so allow only slower Kbps)
-        //
-        //if (upperDelta < lowerDelta)
-        {
-            if (upperDelta < closestDelta)
-            {
-                closestN = upperN;
-                closestD = upperD;
-                closestDelta = upperDelta;
-
-//                printf(" Upper %d/%d = %f (%f)\n", closestN, closestD, middleUnit, closestDelta);
-            }
-        }
-        /*
-        else
-        {
-            if (lowerDelta < closestDelta)
-            {
-                closestN = lowerN;
-                closestD = lowerD;
-                closestDelta = lowerDelta;
-
-                printf(" Lower %d/%d = %f (%f)\n", closestN, closestD, middleUnit, closestDelta);
-            }
-        }
-        */
-    }
-
-//    printf(" Closest %d/%d = %f (%f)\n\n", closestN, closestD, (double)closestN / closestD, closestDelta);
-    // no perfect match, use the closest we found
-    //
-    *resultN = closestN;
-    *resultD = closestD;
-}
-
 esp_err_t i2sSetSampleRate(uint8_t bus_num, 
-        uint32_t rate, 
+        uint16_t dmaBitPerDataBit,
+        uint16_t nsBitSendTime,
         bool parallel_mode, 
-        size_t bytes_per_sample)
+        size_t bytesPerSample)
 {
+    const double I2sClkMhz = (double)I2S_BASE_CLK / 1000000; // 160000000 = 160.0
+    const size_t bits_per_sample = bytesPerSample * 8;
+
     if (bus_num >= NEO_I2S_COUNT) 
     {
         return ESP_FAIL;
     }
 
-    uint8_t bck = 8;
+    uint8_t bck = 4; // must be 2+ due to ESP32S2 adjustment below
+    double clkSampleAdj = 1.0;
 
     // parallel mode needs a higher sample rate
     //
-    if (parallel_mode)
+    if (!parallel_mode)
     {
-        rate *= bytes_per_sample;
-#if defined(CONFIG_IDF_TARGET_ESP32S2)
-        bck *= bytes_per_sample;
-#endif
+        // non-parallel uses two values in the sample
+        // so the clock calcs need to adjust for this
+        // as it makes output faster
+        clkSampleAdj *= 2.0;
     }
 
-    double clkmdiv = (double)I2S_BASE_CLK / (rate * 256.0);
+    double clkmdiv = (double)nsBitSendTime / bytesPerSample / dmaBitPerDataBit / bck / 1000.0 * I2sClkMhz * clkSampleAdj;
+
 
     if (clkmdiv > 256.0) 
     {
@@ -751,11 +646,19 @@ esp_err_t i2sSetSampleRate(uint8_t bus_num,
     {
         log_e("rate is too fast, clkmdiv = %f (%u, %u, %u)",
             clkmdiv,
-            rate,
+            nsBitSendTime,
             parallel_mode,
-            bytes_per_sample);
+            bytesPerSample);
         return ESP_FAIL;
     }
+
+#if defined(CONFIG_IDF_TARGET_ESP32S2)
+    // ESP32S2 is just different 
+    if (parallel_mode && bytesPerSample == 1)
+    {
+        bck /= 2;
+    }
+#endif
 
     // calc integer and franctional for more precise timing
     // 
@@ -764,14 +667,14 @@ esp_err_t i2sSetSampleRate(uint8_t bus_num,
     uint8_t divB = 0;
     uint8_t divA = 0;
 
-    i2sUnitDecimalToFractionClks(&divB, &divA, clkmFraction, 0.000001);
+    UnitDecimalToFractionClks(&divB, &divA, clkmFraction, 0.000001);
 
     i2sSetClock(bus_num, 
         clkmInteger, 
         divB,
         divA,
         bck, 
-        bytes_per_sample * 8);
+        bits_per_sample);
 
     return ESP_OK;
 }

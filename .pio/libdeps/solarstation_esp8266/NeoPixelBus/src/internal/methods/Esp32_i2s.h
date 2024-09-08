@@ -1,11 +1,16 @@
 #pragma once
 
+#if defined(ARDUINO_ARCH_ESP32)
+
+
+
 // ESP32C3/S3 I2S is not supported yet due to significant changes to interface
-#if defined(ARDUINO_ARCH_ESP32) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3)
+#if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C3)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 #include "esp_err.h"
 
@@ -29,7 +34,8 @@ typedef enum {
 void i2sInit(uint8_t bus_num, 
     bool parallel_mode,
     size_t bytes_per_sample,
-    uint32_t sample_rate, 
+    uint16_t dmaBitPerDataBit,
+    uint16_t nsBitSendTime,
     i2s_tx_chan_mod_t chan_mod, 
     i2s_tx_fifo_mod_t fifo_mod, 
     size_t dma_count, 
@@ -41,25 +47,26 @@ void i2sSetPins(uint8_t bus_num,
         int8_t parallel, 
         int8_t busSampleSize,
         bool invert);
+/*
 void i2sSetClkWsPins(uint8_t bus_num,
     int8_t outClk,
     bool invertClk,
     int8_t outWs,
     bool invertWs);
+    */
 bool i2sWrite(uint8_t bus_num);
 bool i2sWriteDone(uint8_t bus_num);
 #ifdef NEOPIXELBUS_I2S_DEBUG
 bool i2sDump(uint8_t bus_num);
 bool i2sGetClks(uint8_t bus_num, uint8_t* clkm_div_num, uint8_t* clkm_div_b, uint8_t* clkm_div_a );
 
-void i2sUnitDecimalToFractionClks(uint8_t* resultN,
-    uint8_t* resultD,
-    double unitDecimal,
-    double accuracy);
+
 #endif
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
 
 #endif

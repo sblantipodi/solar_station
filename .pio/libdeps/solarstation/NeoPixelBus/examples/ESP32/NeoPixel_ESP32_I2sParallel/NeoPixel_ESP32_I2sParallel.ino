@@ -1,14 +1,15 @@
 //
 // NeoPixel_ESP32_I2sParallel - 
 // This sketch demonstrates the use of the I2S Parallel method allowing upto 8 hardware updated channels
-// This example only works on the ESP32
+// This example only works on the ESP32 (C2,S2)
 // 
 // The key part of the method name is Esp32I2s1X8, 
 //    E2p32 (platform specific method),
-//    I2s Channel 1 (most commonly available), 
-//    X8 (8 parallel channel mode)
+//    I2s peripheral channel 1 (most commonly available), 
+//    X8 (8 parallel channel mode, x16 also available)
 //
 // In this example, it demonstrates different ColorFeatures, Method specification, and count per strip
+// Note, the first instance of a NeoPixelBus will set the overall timing of all other instances
 //
 #include <NeoPixelBus.h>
 
