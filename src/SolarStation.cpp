@@ -73,6 +73,7 @@ void setup() {
 }
 
 void turnOffBuiltInLed() {
+#if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
     if (ledsEsp32 == NULL) {
         ledsEsp32 = new NeoPixelBus<NeoRgbFeature, NeoWs2812xMethod>(1, OLED_RESET);
         if (ledsEsp32 == nullptr) {
@@ -82,6 +83,7 @@ void turnOffBuiltInLed() {
     }
     ledsEsp32->SetPixelColor(0, {0, 0, 0});
     ledsEsp32->Show();
+#endif
 }
 
 /********************************** MANAGE WIFI AND MQTT DISCONNECTION *****************************************/
