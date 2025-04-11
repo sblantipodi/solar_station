@@ -526,12 +526,20 @@ class VariantData {
     content_.asLinkedString = s;
   }
 
-  void setTinyString(const char* s, uint8_t n) {
+  template <typename TAdaptedString>
+  void setTinyString(const TAdaptedString& s) {
     ARDUINOJSON_ASSERT(type_ == VariantType::Null);  // must call clear() first
-    ARDUINOJSON_ASSERT(s);
+    ARDUINOJSON_ASSERT(s.size() <= tinyStringMaxLength);
+
     type_ = VariantType::TinyString;
-    for (uint8_t i = 0; i < n; i++)
-      content_.asTinyString[i] = s[i];
+
+    auto n = uint8_t(s.size());
+    for (uint8_t i = 0; i < n; i++) {
+      char c = s[i];
+      ARDUINOJSON_ASSERT(c != 0);  // no NUL in tiny string
+      content_.asTinyString[i] = c;
+    }
+
     content_.asTinyString[n] = 0;
   }
 

@@ -32,7 +32,7 @@ inline bool VariantData::setString(TAdaptedString value,
   }
 
   if (isTinyString(value, value.size())) {
-    setTinyString(value.data(), uint8_t(value.size()));
+    setTinyString(value);
     return true;
   }
 

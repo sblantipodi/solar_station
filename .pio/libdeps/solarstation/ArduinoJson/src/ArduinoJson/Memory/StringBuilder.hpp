@@ -31,7 +31,7 @@ class StringBuilder {
 
     char* p = node_->data;
     if (isTinyString(p, size_)) {
-      variant->setTinyString(p, static_cast<uint8_t>(size_));
+      variant->setTinyString(adaptString(p, size_));
       return;
     }
 
