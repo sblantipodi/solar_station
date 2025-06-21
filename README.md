@@ -74,9 +74,3 @@ for this reason I swapped the R2 resistors with a 22kΩ + 10kΩ + 4.7kΩ (in ser
 
 ## License
 This program is licensed under MIT License
-
-## Thanks To 
-|  Thanks              |  For                           |
-|----------------------|--------------------------------|
-|<a href="https://www.jetbrains.com/"><img width="200" src="https://raw.githubusercontent.com/sblantipodi/arduino_bootstrapper/master/data/img/jetbrains.png"></a>| For the <a href="https://www.jetbrains.com/clion">CLion IDE</a> licenses.|
-
