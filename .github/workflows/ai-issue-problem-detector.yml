@@ -1,55 +1,58 @@
-name: Auto-close non-English issues
+name: Auto-close non-English or abusive issues/PRs
 
 on:
   issues:
     types: [opened]
+  pull_request:
+    types: [opened]
 
 permissions:
   issues: write
+  pull-requests: write
   contents: read
   actions: read
   models: read
 
 jobs:
-  detect-language:
+  moderation:
     runs-on: ubuntu-latest
-    name: Detect and close non-English issues
+    name: Detect non-English or abusive issues/PRs
 
     steps:
-      - name: Extract issue data
+      - name: Extract text content
         id: prepare
         uses: actions/github-script@v8
         with:
           script: |
-            const issue = context.payload.issue;
-            if (!issue) {
+            const isPR = !!context.payload.pull_request;
+            const item = isPR ? context.payload.pull_request : context.payload.issue;
+
+            if (!item) {
               core.setOutput('should_continue', 'false');
               return;
             }
 
-            const { number, title, body, user } = issue;
-
-            // Skip detection for bot accounts
+            const { number, title, body, user } = item;
             if (user?.type === 'Bot') {
-              console.log('Skipping bot user issue');
+              console.log('Skipping bot-created item');
               core.setOutput('should_continue', 'false');
               return;
             }
 
-            const fullText = `${title ?? ''}\n\n${body ?? ''}`.trim();
-
-            if (fullText.length < 20) {
-              console.log('Issue text too short for reliable detection');
+            const text = `${title ?? ''}\n\n${body ?? ''}`.trim();
+            if (text.length < 20) {
+              console.log('Text too short for reliable detection');
               core.setOutput('should_continue', 'false');
               return;
             }
 
             core.setOutput('should_continue', 'true');
-            core.setOutput('issue_number', number);
-            core.setOutput('issue_text', fullText);
+            core.setOutput('item_type', isPR ? 'pr' : 'issue');
+            core.setOutput('item_number', number);
+            core.setOutput('item_text', text);
 
-      - name: Detect language using OpenAI
-        id: detect
+      - name: Detect language
+        id: detect_lang
         if: steps.prepare.outputs.should_continue == 'true'
         uses: actions/ai-inference@v2
         with:
@@ -58,91 +61,169 @@ jobs:
             You are a language detection system. Determine if the provided text is written in English.
 
             Rules:
-            1. Ignore markdown headers and code blocks.
-            2. Ignore error logs or technical output.
-            3. Consider technical terms and URLs as neutral.
-            4. Focus on the user's description only.
-            5. Return only JSON with two fields:
-               {
-                 "is_english": true|false,
-                 "detected_language": "English"|"Italian"|"Spanish"|...
-               }
-            6. If unsure, set "detected_language": "undefined".
+            - Ignore markdown headers, code, and logs.
+            - Focus on the user's descriptive sentences.
+            - Return ONLY JSON:
+              {
+                "is_english": true|false,
+                "detected_language": "English"|"Italian"|...
+              }
+            - If unsure, set detected_language = "undefined".
           prompt: |
-            Analyze this issue text and detect the language:
+            Analyze this text and detect its primary language:
 
-            ${{ steps.prepare.outputs.issue_text }}
+            ${{ steps.prepare.outputs.item_text }}
           max-tokens: 50
 
-      - name: Handle AI result
+      - name: Detect strong abuse
+        id: detect_abuse
+        if: steps.prepare.outputs.should_continue == 'true'
+        uses: actions/ai-inference@v2
+        with:
+          model: openai/gpt-4o-mini
+          system-prompt: |
+            You are a content moderation system.
+            Determine if the user's text contains **strongly abusive, threatening, or hateful language**.
+
+            Rules:
+            1. Ignore mild profanity or isolated swear words.
+            2. Mark as abusive **only** if:
+               - There are multiple explicit insults or swear words, OR
+               - There are personal attacks, hate speech, or threats.
+            3. Technical or humorous use of bad words (like error logs or memes) is NOT abusive.
+            4. Respond ONLY with JSON:
+               {
+                 "contains_abuse": true|false,
+                 "reason": "short explanation"
+               }
+          prompt: |
+            Analyze the following text for strongly abusive or hateful content:
+
+            ${{ steps.prepare.outputs.item_text }}
+          max-tokens: 50
+
+      - name: Handle result
         if: steps.prepare.outputs.should_continue == 'true'
         uses: actions/github-script@v8
         env:
-          AI_RESPONSE: ${{ steps.detect.outputs.response }}
-          ISSUE_NUMBER: ${{ steps.prepare.outputs.issue_number }}
+          AI_LANG: ${{ steps.detect_lang.outputs.response }}
+          AI_ABUSE: ${{ steps.detect_abuse.outputs.response }}
+          ITEM_TYPE: ${{ steps.prepare.outputs.item_type }}
+          ITEM_NUMBER: ${{ steps.prepare.outputs.item_number }}
         with:
           script: |
-            const issueNumber = Number(process.env.ISSUE_NUMBER);
-            const aiResponse = process.env.AI_RESPONSE?.trim() ?? '';
+            const isPR = process.env.ITEM_TYPE === 'pr';
+            const number = Number(process.env.ITEM_NUMBER);
+            const langRaw = process.env.AI_LANG?.trim() ?? '';
+            const abuseRaw = process.env.AI_ABUSE?.trim() ?? '';
 
-            console.log('AI raw response:', aiResponse);
+            console.log(`Analyzing ${isPR ? 'PR' : 'issue'} #${number}`);
+            console.log('Language detection raw:', langRaw);
+            console.log('Abuse detection raw:', abuseRaw);
 
-            let languageResult;
+            let lang, abuse;
             try {
-              languageResult = JSON.parse(aiResponse);
-              if (typeof languageResult.is_english !== 'boolean') throw new Error('Missing is_english field');
+              lang = JSON.parse(langRaw);
+              abuse = JSON.parse(abuseRaw);
             } catch (err) {
-              core.warning(`Invalid AI response: ${err.message}`);
+              core.warning(`Parsing error: ${err.message}`);
               return;
             }
 
-            if (languageResult.is_english || !languageResult.detected_language || languageResult.detected_language === 'undefined') {
-              console.log('Issue considered English or undefined — skipping.');
-              return;
-            }
+            // If abusive, close immediately
+            if (abuse?.contains_abuse === true) {
+              const reason = abuse.reason || 'Detected abusive language';
+              console.log(`Strong abuse detected: ${reason}`);
 
-            const detectedLang = languageResult.detected_language;
-            console.log(`Detected non-English issue: ${detectedLang}`);
+              const body = [
+                '<!-- workflow: auto-close-abuse -->',
+                `### 🚫 Abusive ${isPR ? 'Pull Request' : 'Issue'} detected`,
+                '',
+                'This submission contains strongly offensive or inappropriate language and has been closed automatically.',
+                '',
+                'Please maintain respectful communication to keep the project welcoming for everyone. 🙏',
+              ].join('\n');
 
-            const commentBody = [
-              '<!-- workflow: auto-close-non-english -->',
-              '### 🌐 Non-English issue detected',
-              '',
-              `This issue appears to be written in **${detectedLang}** rather than English.`,
-              '',
-              'The Firefly Luciferin project uses English to make collaboration easier across our global community.',
-              '',
-              '**Please:**',
-              '1. Recreate this issue in English.',
-              '2. You can use translation tools (e.g., Google Translate) or AI assistants to help.',
-              '',
-              'Thank you for helping us keep communication clear for all contributors! 🙏'
-            ].join('\n');
-
-            try {
               await github.rest.issues.createComment({
                 ...context.repo,
-                issue_number: issueNumber,
-                body: commentBody,
+                issue_number: number,
+                body,
               });
 
               await github.rest.issues.addLabels({
                 ...context.repo,
-                issue_number: issueNumber,
-                labels: ['non-english'],
+                issue_number: number,
+                labels: ['abusive'],
               });
 
+              if (isPR) {
+                await github.rest.pulls.update({
+                  ...context.repo,
+                  pull_number: number,
+                  state: 'closed',
+                });
+              } else {
+                await github.rest.issues.update({
+                  ...context.repo,
+                  issue_number: number,
+                  state: 'closed',
+                  state_reason: 'not_planned',
+                });
+              }
+
+              console.log(`Closed abusive ${isPR ? 'PR' : 'issue'} #${number}`);
+              return;
+            }
+
+            // Otherwise, handle language normally
+            if (lang?.is_english || !lang?.detected_language || lang.detected_language === 'undefined') {
+              console.log('Item is English or language undefined — skipping.');
+              return;
+            }
+
+            const detectedLang = lang.detected_language;
+            console.log(`Detected non-English ${isPR ? 'PR' : 'issue'} (${detectedLang})`);
+
+            const commentBody = [
+              '<!-- workflow: auto-close-non-english -->',
+              `### 🌐 Non-English ${isPR ? 'Pull Request' : 'Issue'} detected`,
+              '',
+              `This ${isPR ? 'pull request' : 'issue'} appears to be written in **${detectedLang}** rather than English.`,
+              '',
+              'The Firefly Luciferin project uses English to make collaboration easier across our global community.',
+              '',
+              '**Please:**',
+              '1. Recreate this in English so others can help.',
+              '2. You can use translation tools (e.g., Google Translate) or AI assistants.',
+              '',
+              'Thank you for helping us keep communication clear for everyone! 🙏'
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: number,
+              body: commentBody,
+            });
+
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: number,
+              labels: ['non-english'],
+            });
+
+            if (isPR) {
+              await github.rest.pulls.update({
+                ...context.repo,
+                pull_number: number,
+                state: 'closed',
+              });
+            } else {
               await github.rest.issues.update({
                 ...context.repo,
-                issue_number: issueNumber,
+                issue_number: number,
                 state: 'closed',
                 state_reason: 'not_planned',
               });
-
-              console.log('Issue commented, labeled, and closed.');
-            } catch (error) {
-              core.error(`Failed to process issue: ${error.message}`);
-              if (error.status === 403) {
-                core.error('Likely permissions issue or rate limit.');
-              }
             }
+
+            console.log(`Closed non-English ${isPR ? 'PR' : 'issue'} #${number}`);
