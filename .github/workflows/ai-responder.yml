@@ -34,7 +34,7 @@ jobs:
         id: ai
         uses: actions/ai-inference@v2
         with:
-          model: gpt-5-mini
+          model: openai/gpt-5-mini
           prompt: |
             You are an assistant for the Luciferin Project.
             A user opened the following GitHub issue:
