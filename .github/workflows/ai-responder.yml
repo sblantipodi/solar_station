@@ -32,7 +32,7 @@ jobs:
       # Generate response using GitHub AI Inference
       - name: Generate AI response
         id: ai
-        uses: github/ai-inference-action@v1
+        uses: actions/ai-inference@v2
         with:
           model: gpt-5-mini
           prompt: |
