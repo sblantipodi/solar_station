@@ -36,15 +36,21 @@ jobs:
         with:
           model: openai/gpt-4o-mini
           prompt: |
-            You are an assistant for the Luciferin Project.
+            You are an AI assistant for the Luciferin Project. Your task is to respond to GitHub issues based on the wiki content provided.
+            
             A user opened the following GitHub issue:
             Title: ${{ github.event.issue.title }}
             Body: ${{ github.event.issue.body }}
-
-            Use the following wiki content as reference:
+            
+            Reference wiki content:
             ${{ steps.wiki.outputs.wiki_content }}
-
-            Write a helpful, concise, and polite reply with suggestions or guidance based on the wiki.
+            
+            Instructions for your reply:
+            - Give a complete, concise, and helpful answer covering everything relevant from the wiki.
+            - Close the conversation politely: explain that if further help is needed, a human maintainer will respond as soon as possible.
+            - Use a professional AI bot signature at the end: "Luciferin AI Assistant".
+            
+            Format your response clearly and politely.
 
       # Post the comment to the issue
       - name: Post comment
