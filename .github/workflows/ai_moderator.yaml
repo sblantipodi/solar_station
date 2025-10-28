@@ -121,17 +121,24 @@ jobs:
           script: |
             const isPR = process.env.ITEM_TYPE === 'pr';
             const number = Number(process.env.ITEM_NUMBER);
-            const langRaw = process.env.AI_LANG?.trim() ?? '';
-            const abuseRaw = process.env.AI_ABUSE?.trim() ?? '';
+            let langRaw = process.env.AI_LANG?.trim() ?? '';
+            let abuseRaw = process.env.AI_ABUSE?.trim() ?? '';
 
             console.log(`Analyzing ${isPR ? 'PR' : 'issue'} #${number}`);
             console.log('Language detection raw:', langRaw);
             console.log('Abuse detection raw:', abuseRaw);
 
+            function cleanJSON(raw) {
+              // Rimuove blocchi di codice Markdown o testo fuori JSON
+              raw = raw.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+              const match = raw.match(/\{[\s\S]*\}/);
+              return match ? match[0] : '{}';
+            }
+
             let lang, abuse;
             try {
-              lang = JSON.parse(langRaw);
-              abuse = JSON.parse(abuseRaw);
+              lang = JSON.parse(cleanJSON(langRaw));
+              abuse = JSON.parse(cleanJSON(abuseRaw));
             } catch (err) {
               core.warning(`Parsing error: ${err.message}`);
               return;
