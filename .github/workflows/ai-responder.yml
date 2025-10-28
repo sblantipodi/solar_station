@@ -20,14 +20,19 @@ jobs:
           WIKI_FILE=".ai_docs_for_ai/AI-SUMMARY.md"
           if [ -f "$WIKI_FILE" ]; then
             CONTENT=$(<"$WIKI_FILE")
+            echo "=== WIKI CONTENT START ==="
+            echo "$CONTENT"
+            echo "=== WIKI CONTENT END ==="
             echo "wiki_content<<EOF" >> $GITHUB_OUTPUT
             printf "%s\n" "$CONTENT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
+            echo "No wiki file found"
             echo "wiki_content<<EOF" >> $GITHUB_OUTPUT
             echo "No wiki file found" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           fi
+
 
       # Generate AI response
       - name: Generate AI response
