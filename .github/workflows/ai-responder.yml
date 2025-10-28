@@ -17,7 +17,7 @@ jobs:
       - name: Load wiki content
         id: wiki
         run: |
-          WIKI_FILE=".ai_docs_for_ai/AI-SUMMARY.md"
+          WIKI_FILE=".ai_docs_for_rag/AI-SUMMARY.md"
           if [ -f "$WIKI_FILE" ]; then
             CONTENT=$(<"$WIKI_FILE")
             echo "=== WIKI CONTENT START ==="
