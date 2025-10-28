@@ -17,7 +17,7 @@ jobs:
       - name: Load wiki content
         id: wiki
         run: |
-          WIKI_FILE="wiki_summaries.md"
+          WIKI_FILE=".ai_docs_for_ai/AI-SUMMARY.md"
           if [ -f "$WIKI_FILE" ]; then
             CONTENT=$(head -n 5000 $WIKI_FILE)
             echo "wiki_content<<EOF" >> $GITHUB_OUTPUT
