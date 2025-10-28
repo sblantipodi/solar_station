@@ -39,11 +39,18 @@ jobs:
               return;
             }
 
-            const text = `${title ?? ''}\n\n${body ?? ''}`.trim();
+            let text = `${title ?? ''}\n\n${body ?? ''}`.trim();
             if (text.length < 20) {
               console.log('Text too short for reliable detection');
               core.setOutput('should_continue', 'false');
               return;
+            }
+
+            // Limit to ~7000 tokens (~25k characters)
+            const MAX_CHARS = 25000;
+            if (text.length > MAX_CHARS) {
+              console.log(`Text too long (${text.length} chars), truncating to ${MAX_CHARS}`);
+              text = text.substring(0, MAX_CHARS) + '\n\n[...truncated due to length limit]';
             }
 
             core.setOutput('should_continue', 'true');
