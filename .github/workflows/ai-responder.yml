@@ -50,12 +50,11 @@ jobs:
             ${{ steps.wiki.outputs.wiki_content }}
 
             Instructions for your reply:
+            - Answer MUST not be longer than 3900 token
             - Provide a complete and concise answer covering all relevant points from the wiki.
-            - Include details on device reset procedures if applicable.
             - Close the conversation politely, explaining that if further help is needed, a human maintainer will respond.
             - Sign your reply as "Luciferin AI Assistant".
             - Format clearly and politely.
-            - Answer MUST not be longer than 3900 token
 
       # Post the comment to the issue
       - name: Post comment
