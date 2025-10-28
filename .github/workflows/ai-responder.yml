@@ -9,19 +9,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Get wiki content
+      # Load full wiki content
       - name: Load wiki content
         id: wiki
         run: |
           WIKI_FILE=".ai_docs_for_ai/AI-SUMMARY.md"
           if [ -f "$WIKI_FILE" ]; then
-            CONTENT=$(cat "$WIKI_FILE")
+            CONTENT=$(<"$WIKI_FILE")
             echo "wiki_content<<EOF" >> $GITHUB_OUTPUT
-            echo "$CONTENT" >> $GITHUB_OUTPUT
+            printf "%s\n" "$CONTENT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
             echo "wiki_content<<EOF" >> $GITHUB_OUTPUT
@@ -29,29 +29,27 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
           fi
 
-      # Generate response using GitHub AI Inference
+      # Generate AI response
       - name: Generate AI response
         id: ai
         uses: actions/ai-inference@v2
         with:
           model: openai/gpt-4o-mini
           prompt: |
-            You are an AI assistant for the Luciferin Project. 
-            A user opened the following GitHub issue:
-            Title: ${{ github.event.issue.title }}
-            Body: ${{ github.event.issue.body }}
-          
-            You **must answer ONLY based on the reference wiki content** provided below. 
-            If the answer is not in the wiki, say politely that the user should contact a maintainer.
-          
-            Reference wiki content:
-            ${{ steps.wiki.outputs.wiki_content }}
-          
-            Instructions:
-            - Provide a complete, concise, and helpful answer using only the wiki.
-            - Close the conversation politely, mentioning that a maintainer can help if needed.
-            - Sign your answer as "Luciferin AI Assistant".
+            You are an AI assistant for the Luciferin Project. Your task is to respond to GitHub issues using the wiki content provided.
 
+            Issue Title: ${{ github.event.issue.title }}
+            Issue Body: ${{ github.event.issue.body }}
+
+            Reference Wiki Content:
+            ${{ steps.wiki.outputs.wiki_content }}
+
+            Instructions for your reply:
+            - Provide a complete and concise answer covering all relevant points from the wiki.
+            - Include details on device reset procedures if applicable.
+            - Close the conversation politely, explaining that if further help is needed, a human maintainer will respond.
+            - Sign your reply as "Luciferin AI Assistant".
+            - Format clearly and politely.
 
       # Post the comment to the issue
       - name: Post comment
@@ -59,4 +57,3 @@ jobs:
         with:
           issue-number: ${{ github.event.issue.number }}
           body: ${{ steps.ai.outputs.response }}
-
