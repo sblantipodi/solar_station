@@ -1,0 +1,54 @@
+name: Auto Wiki Responder (GitHub AI Inference)
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  respond_to_issue:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Get wiki content
+      - name: Load wiki content
+        id: wiki
+        run: |
+          WIKI_FILE="wiki_summaries.md"
+          if [ -f "$WIKI_FILE" ]; then
+            CONTENT=$(head -n 5000 $WIKI_FILE)
+            echo "wiki_content<<EOF" >> $GITHUB_OUTPUT
+            echo "$CONTENT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "wiki_content<<EOF" >> $GITHUB_OUTPUT
+            echo "No wiki file found" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      # Generate response using GitHub AI Inference
+      - name: Generate AI response
+        id: ai
+        uses: github/ai-inference-action@v1
+        with:
+          model: gpt-5-mini
+          prompt: |
+            You are an assistant for the Luciferin Project.
+            A user opened the following GitHub issue:
+            Title: ${{ github.event.issue.title }}
+            Body: ${{ github.event.issue.body }}
+
+            Use the following wiki content as reference:
+            ${{ steps.wiki.outputs.wiki_content }}
+
+            Write a helpful, concise, and polite reply with suggestions or guidance based on the wiki.
+
+      # Post the comment to the issue
+      - name: Post comment
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: ${{ steps.ai.outputs.output }}
