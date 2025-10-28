@@ -39,7 +39,7 @@ jobs:
         id: ai
         uses: actions/ai-inference@v2
         with:
-          model: openai/gpt-5-mini
+          model: openai/gpt-4o-mini
           prompt: |
             You are an AI assistant for the Luciferin Project. Your task is to respond to GitHub issues using the wiki content provided.
 
@@ -55,6 +55,7 @@ jobs:
             - Close the conversation politely, explaining that if further help is needed, a human maintainer will respond.
             - Sign your reply as "Luciferin AI Assistant".
             - Format clearly and politely.
+            - Answer MUST not be longer than 3900 token
 
       # Post the comment to the issue
       - name: Post comment
