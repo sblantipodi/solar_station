@@ -35,11 +35,6 @@
 
 #include "Version.h"
 #include "BootstrapManager.h"
-#if CONFIG_IDF_TARGET_ESP32S3
-#include <driver/adc.h>
-#endif
-#include <NeoPixelBus.h>
-#include <NeoPixelAnimator.h>
 
 /****************** BOOTSTRAP MANAGER ******************/
 BootstrapManager bootstrapManager;
@@ -78,10 +73,6 @@ const char* SOLAR_STATION_WATERPUMP_ACTIVE_STAT_TOPIC = "stat/water_pump/ACTIVE"
 const char* SOLAR_STATION_WATERPUMP_POWER_TOPIC = "stat/water_pump/POWER";
 const char* SOLAR_STATION_POWER_TOPIC = "stat/solarstation/POWER";
 const char* SOLAR_STATION_MQTT_ACK = "stat/solarstation/ACK";
-// Turn off integrated LED
-#if CONFIG_IDF_TARGET_ESP32S3
-NeoPixelBus<NeoRgbFeature, NeoWs2812xMethod> *ledsEsp32 = NULL;
-#endif
 
 /****************** GLOBAL VARS ******************/
 // MQTT publish retry until ack received
