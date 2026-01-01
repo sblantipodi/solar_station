@@ -1,7 +1,7 @@
 /*
   SolarStation.h - Smart solar watering system 
   
- Copyright © 2020 - 2024  Davide Perini
+ Copyright © 2020 - 2026  Davide Perini
   
   Permission is hereby granted, free of charge, to any person obtaining a copy of 
   this software and associated documentation files (the "Software"), to deal
