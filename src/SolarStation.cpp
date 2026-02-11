@@ -62,6 +62,7 @@ void setup() {
   rgbLedWrite(LED_BUILTIN, 0, 0, 0);
 #endif
   // Bootsrap setup() with Wifi and MQTT functions
+  blockingMqtt = false;
   bootstrapManager.bootstrapSetup(manageDisconnections, manageHardwareButton, callback);
 
 #if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
